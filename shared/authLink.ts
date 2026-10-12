@@ -1,8 +1,10 @@
-// Links from Supabase e-mails (invitation, password reset) land on the app with the result in the URL fragment,
-// e.g. `#access_token=…&type=invite` or `#error=access_denied&error_code=otp_expired`. supabase-js consumes and
-// clears the fragment while it starts, so the app reads it first to know which screen to show.
+// Links from account e-mails (invitation, password reset) that open the app:
+// - sent by the app (api/_lib/mail.ts): `?token_hash=…&type=invite`, a one-time token the app exchanges for a session;
+// - sent by Supabase itself: the result in the URL fragment, e.g. `#access_token=…&type=invite` or
+//   `#error=access_denied&error_code=otp_expired`. supabase-js consumes and clears the fragment while it starts,
+//   so the app reads it first to know which screen to show.
 
-export type AuthLink = { kind: 'invite' | 'recovery' } | { kind: 'error'; message: string } | null;
+export type AuthLink = { kind: 'invite' | 'recovery'; tokenHash?: string } | { kind: 'error'; message: string } | null;
 
 export const EXPIRED_LINK = 'Link wygasł albo został już użyty. Poproś administratora o nowy albo użyj „Nie pamiętasz hasła?”.';
 
@@ -16,6 +18,9 @@ export function parseAuthLink(hash: string, search = ''): AuthLink {
     const description = fragment.get('error_description') ?? query.get('error_description');
     return { kind: 'error', message: `Link jest nieprawidłowy${description ? ` (${description})` : ''}.` };
   }
+  const tokenHash = query.get('token_hash');
+  const linkType = query.get('type');
+  if (tokenHash && (linkType === 'invite' || linkType === 'recovery')) return { kind: linkType, tokenHash };
   if (!fragment.get('access_token')) return null;
   const type = fragment.get('type');
   return type === 'invite' || type === 'recovery' ? { kind: type } : null;

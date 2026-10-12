@@ -1,7 +1,7 @@
 // User accounts (administrator only). There is no public sign-up: the administrator creates every account.
 //
-// By default a new account gets an invitation e-mail with a link to set the password (sent by Supabase Auth through
-// the SMTP server configured there). A start password set by the administrator remains as a fallback.
+// By default a new account gets an invitation e-mail with a link to set the password (see _lib/mail.ts). A start
+// password set by the administrator remains as a fallback.
 //
 //   GET   /api/admin/users   → { users: (Profile & { created_at, documents, status, last_sign_in_at })[] }
 //   POST  /api/admin/users   body { email, fullName?, role?, invite?, password? } → { user, invited }
@@ -11,6 +11,7 @@ import type { User } from '@supabase/supabase-js';
 import type { Profile } from '../../shared/schema.js';
 import { requireAdmin } from '../_lib/auth.js';
 import { HttpError, appUrl, handle, json, readJson } from '../_lib/http.js';
+import { createAccountLink, sendAccountMail } from '../_lib/mail.js';
 import { db } from '../_lib/supabase.js';
 
 const MIN_PASSWORD = 10;
@@ -31,15 +32,6 @@ async function authUsers(): Promise<Map<string, User>> {
     for (const user of data.users) users.set(user.id, user);
     if (data.users.length < 1000) return users;
   }
-}
-
-/** Supabase errors from sending e-mail, translated for the administrator. */
-function mailError(error: { message: string; status?: number }): HttpError {
-  console.error('[users] e-mail', error);
-  if (error.status === 429 || /rate limit/i.test(error.message)) {
-    return new HttpError(429, 'Przekroczono limit wysyłki e-maili w Supabase. Spróbuj później albo ustaw własny serwer SMTP (README).');
-  }
-  return new HttpError(502, `Nie udało się wysłać e-maila (${error.message}). Sprawdź ustawienia SMTP w Supabase (README).`);
 }
 
 export function GET(request: Request): Promise<Response> {
@@ -74,17 +66,26 @@ export function POST(request: Request): Promise<Response> {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, 'Nieprawidłowy adres e-mail.');
     if (!invite && password.length < MIN_PASSWORD) throw new HttpError(400, `Hasło musi mieć co najmniej ${MIN_PASSWORD} znaków.`);
 
-    const { data, error } = invite
-      ? await db().auth.admin.inviteUserByEmail(email, { data: { full_name: fullName }, redirectTo: appUrl(request) })
-      : await db().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName } });
-    if (error || !data.user) {
-      if (error && (error.code === 'email_exists' || /already/i.test(error.message))) throw new HttpError(400, 'Użytkownik z tym adresem już istnieje.');
-      if (invite && error) throw mailError(error);
+    const created = invite
+      ? await createAccountLink('invite', email, appUrl(request), fullName)
+      : await db().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName } }).then(({ data, error }) => ({ user: data.user, error, url: null }));
+    if (created.error || !created.user) {
+      const error = created.error as { code?: string; message?: string } | null;
+      if (error && (error.code === 'email_exists' || /already/i.test(error.message ?? ''))) throw new HttpError(400, 'Użytkownik z tym adresem już istnieje.');
+      console.error('[users] create', error);
       throw new HttpError(400, 'Nie udało się utworzyć konta.');
     }
-    const profile: Profile = { id: data.user.id, email, full_name: fullName, role: role(body.role) };
+    const profile: Profile = { id: created.user.id, email, full_name: fullName, role: role(body.role) };
     const { error: profileError } = await db().from('profiles').upsert(profile);
     if (profileError) throw profileError;
+    if (created.url) {
+      try {
+        await sendAccountMail('invite', email, created.url);
+      } catch (error) {
+        const reason = error instanceof HttpError ? error.message : 'błąd wysyłki';
+        throw new HttpError(502, `Konto zostało utworzone, ale zaproszenia nie wysłano: ${reason} Wyślij je ponownie przyciskiem „Wyślij link” na liście kont.`);
+      }
+    }
     return json({ user: profile, invited: invite }, 201);
   });
 }
@@ -111,17 +112,20 @@ export function PATCH(request: Request): Promise<Response> {
     if (body.sendLink === true) {
       const { data: found, error } = await db().auth.admin.getUserById(body.id);
       if (error || !found.user?.email) throw new HttpError(404, 'Nie znaleziono użytkownika.');
-      const redirectTo = appUrl(request);
+      const email = found.user.email;
       // An unused invitation is sent again; anyone else gets a password-reset link.
       sent = accountStatus(found.user) === 'invited' ? 'invite' : 'recovery';
-      let mailFailure = null;
-      if (sent === 'invite') {
-        ({ error: mailFailure } = await db().auth.admin.inviteUserByEmail(found.user.email, { data: found.user.user_metadata, redirectTo }));
-        // Supabase refuses a second invitation once the address counts as confirmed; a reset link does the same job.
-        if (mailFailure?.code === 'email_exists') sent = 'recovery';
+      let link = await createAccountLink(sent, email, appUrl(request), found.user.user_metadata?.full_name as string | undefined);
+      // Supabase refuses a second invitation once the address counts as confirmed; a reset link does the same job.
+      if (sent === 'invite' && link.error) {
+        sent = 'recovery';
+        link = await createAccountLink('recovery', email, appUrl(request));
       }
-      if (sent === 'recovery') ({ error: mailFailure } = await db().auth.resetPasswordForEmail(found.user.email, { redirectTo }));
-      if (mailFailure) throw mailError(mailFailure);
+      if (link.error || !link.url) {
+        console.error('[users] link', link.error);
+        throw new HttpError(400, 'Nie udało się utworzyć linku dla tego konta.');
+      }
+      await sendAccountMail(sent, email, link.url);
     }
     const query = Object.keys(changes).length ? db().from('profiles').update(changes) : db().from('profiles').select();
     const { data, error } = await query.eq('id', body.id).select('id, email, full_name, role').maybeSingle();
