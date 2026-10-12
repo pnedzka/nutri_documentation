@@ -10,7 +10,7 @@ const key: string | undefined =
 
 /** Invitation or password-reset link the page was opened from. Read before the client below consumes the URL. */
 export const authLink: AuthLink = parseAuthLink(window.location.hash, window.location.search);
-// supabase-js leaves error details in the URL; the app shows its own message instead.
-if (authLink?.kind === 'error') window.history.replaceState(null, '', window.location.pathname);
+// Error details and one-time tokens do not stay in the address bar (or the browser history).
+if (authLink?.kind === 'error' || (authLink && 'tokenHash' in authLink)) window.history.replaceState(null, '', window.location.pathname);
 
 export const supabase: SupabaseClient | null = url && key ? createClient(url, key) : null;

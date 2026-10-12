@@ -25,6 +25,13 @@ interface AuthState {
 
 export const MIN_PASSWORD = 10;
 
+// A link from the app's e-mail carries a one-time token: exchange it for a session exactly once (React StrictMode
+// runs effects twice, and a second exchange would fail because the token is used up).
+const linkVerification =
+  supabase && authLink && authLink.kind !== 'error' && authLink.tokenHash
+    ? supabase.auth.verifyOtp({ token_hash: authLink.tokenHash, type: authLink.kind })
+    : null;
+
 export const useAuth = create<AuthState>((set, get) => {
   async function loadProfile(session: Session | null) {
     if (!session) {
@@ -60,12 +67,31 @@ export const useAuth = create<AuthState>((set, get) => {
         set({ status: 'unconfigured' });
         return () => {};
       }
-      const { data } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'PASSWORD_RECOVERY') set({ passwordSetup: 'recovery' });
-        // Supabase recommends not awaiting inside the callback.
-        setTimeout(() => void loadProfile(session), 0);
-      });
-      return () => data.subscription.unsubscribe();
+      const client = supabase;
+      let unsubscribe: (() => void) | null = null;
+      let stopped = false;
+      const listen = () => {
+        if (stopped) return;
+        const { data } = client.auth.onAuthStateChange((event, session) => {
+          if (event === 'PASSWORD_RECOVERY') set({ passwordSetup: 'recovery' });
+          // Supabase recommends not awaiting inside the callback.
+          setTimeout(() => void loadProfile(session), 0);
+        });
+        unsubscribe = () => data.subscription.unsubscribe();
+      };
+      // Listen only once the link's token is exchanged, so the first state seen is the new session.
+      if (linkVerification) {
+        void linkVerification.then(({ error }) => {
+          if (error) set({ passwordSetup: null, linkError: EXPIRED_LINK });
+          listen();
+        });
+      } else {
+        listen();
+      }
+      return () => {
+        stopped = true;
+        unsubscribe?.();
+      };
     },
     signIn: async (email, password) => {
       if (!supabase) throw new Error('Aplikacja nie jest skonfigurowana.');
@@ -88,10 +114,7 @@ export const useAuth = create<AuthState>((set, get) => {
     },
     requestReset: async (email) => {
       if (!supabase) throw new Error('Aplikacja nie jest skonfigurowana.');
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
-      if (error) {
-        throw new Error(error.status === 429 ? 'Zbyt wiele prób. Spróbuj ponownie za kilka minut.' : `Nie udało się wysłać linku: ${error.message}`);
-      }
+      await api('/api/auth/recover', { method: 'POST', body: { email } });
     },
   };
 });

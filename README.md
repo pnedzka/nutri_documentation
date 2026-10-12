@@ -73,6 +73,7 @@ Kod: `shared/verify.ts` (sprawdzanie), `shared/printable.ts` (co trafia na papie
    - opcjonalnie `CLAUDE_EFFORT`: domyślnie `medium`.
    - opcjonalnie `CLAUDE_FALLBACKS=off`: wyłącza automatyczne ponowienie na innym modelu, gdy Claude odmówi przetworzenia.
    - `APP_URL`: adres aplikacji, do którego prowadzą linki w e-mailach, np. `https://nutridocumentation-nxdi.vercel.app`. Bez niego używany jest adres, z którego administrator wysłał zaproszenie.
+   - `RESEND_API_KEY`: klucz Resend do wysyłki zaproszeń i linków resetu hasła (zob. niżej).
 3. **Deployments → Redeploy.** Przy buildzie skrypt `scripts/migrate.mjs` sam założy tabele i prywatne buckety (`db/schema.sql`). Skrypt można bezpiecznie uruchamiać wielokrotnie.
 4. **Pierwsze konto.** Supabase → **Authentication → Users → Add user** (e-mail z `ADMIN_EMAILS`, hasło, „Auto Confirm User”).
    - Po zalogowaniu ta osoba jest administratorem.
@@ -81,52 +82,26 @@ Kod: `shared/verify.ts` (sprawdzanie), `shared/printable.ts` (co trafia na papie
 
 ## Zaproszenia i reset hasła e-mailem
 
-E-maile wysyła Supabase Auth. Wbudowany serwer pocztowy Supabase wysyła tylko kilka wiadomości na godzinę i tylko do członków zespołu Supabase, dlatego potrzebny jest własny SMTP, np. [Resend](https://resend.com).
+E-maile wysyła sama aplikacja przez API [Resend](https://resend.com), jako `Nutri APEX <no-reply@nutripartners.co>`. W Supabase nie trzeba konfigurować SMTP ani szablonów:
+- link tworzy Supabase Auth (`generateLink`, bez wysyłki),
+- prowadzi prosto do aplikacji, która wymienia jednorazowy token na sesję.
 
-1. **Resend:**
-   - **Domains → Add domain** `nutripartners.co`, dodaj pokazane rekordy DNS (DKIM, SPF) u dostawcy domeny i poczekaj na „Verified”,
-   - **API Keys → Create API key** (uprawnienie „Sending access”).
-2. **Supabase → Authentication → Emails → SMTP Settings → Enable custom SMTP:**
+Konfiguracja:
+1. **Resend:** domena `nutripartners.co` zweryfikowana (region EU) i klucz API z uprawnieniem „Sending access”.
+2. **Vercel → Settings → Environment Variables:**
+   - `RESEND_API_KEY`: klucz z Resend,
+   - opcjonalnie `MAIL_FROM`: nadawca, domyślnie `Nutri APEX <no-reply@nutripartners.co>`,
+   - `APP_URL`: adres aplikacji w linkach.
 
-   | Pole | Wartość |
-   | --- | --- |
-   | Sender email | `no-reply@nutripartners.co` |
-   | Sender name | `Nutri Partners` |
-   | Host | `smtp.resend.com` |
-   | Port | `465` |
-   | Username | `resend` |
-   | Password | klucz API z Resend |
-
-   W **Authentication → Rate Limits** można podnieść limit e-maili na godzinę.
-3. **Supabase → Authentication → URL Configuration:**
-   - Site URL: `https://nutridocumentation-nxdi.vercel.app`,
-   - Redirect URLs: ten sam adres.
-4. **Supabase → Authentication → Sign In / Providers → Email:** „Email OTP Expiration” określa ważność linków. Domyślnie to 1 godzina; na zaproszenia lepiej ustawić `86400` (24 godziny).
-5. **Supabase → Authentication → Emails → Templates**, polskie treści:
-
-   **Invite user.** Temat: `Zaproszenie do aplikacji Nutri Partners`
-
-   ```html
-   <h2>Zaproszenie do aplikacji Nutri Partners</h2>
-   <p>Dzień dobry,</p>
-   <p>założyliśmy dla Ciebie konto w aplikacji do neutralizacji dokumentów dostawców Nutri Partners. Login: <strong>{{ .Email }}</strong>.</p>
-   <p><a href="{{ .ConfirmationURL }}">Ustaw hasło i zaloguj się</a></p>
-   <p>Link jest jednorazowy. Jeśli wygaśnie, poproś administratora o nowy.</p>
-   ```
-
-   **Reset password.** Temat: `Ustaw nowe hasło – Nutri Partners`
-
-   ```html
-   <h2>Nowe hasło</h2>
-   <p>Otrzymaliśmy prośbę o ustawienie nowego hasła do konta <strong>{{ .Email }}</strong> w aplikacji Nutri Partners.</p>
-   <p><a href="{{ .ConfirmationURL }}">Ustaw nowe hasło</a></p>
-   <p>Jeśli to nie Ty, zignoruj tę wiadomość. Hasło się nie zmieni.</p>
-   ```
+   Po zmianie zmiennych wykonaj ponowne wdrożenie.
+3. Opcjonalnie: **Supabase → Authentication → Sign In / Providers → Email → „Email OTP Expiration”** określa ważność linków. Domyślnie to 1 godzina, maksymalnie 86400 s.
 
 W zakładce **Użytkownicy**:
 - **Status** konta: „Zaproszone” (link jeszcze nieużyty), „Aktywne” albo „Bez logowania”.
 - **„Wyślij link”** wysyła ponownie zaproszenie albo, dla aktywnego konta, link do zmiany hasła.
-- Bez skonfigurowanego SMTP można odznaczyć „Wyślij zaproszenie e-mailem” i przekazać hasło startowe samodzielnie.
+- Bez wysyłki e-maili można odznaczyć „Wyślij zaproszenie e-mailem” i przekazać hasło startowe samodzielnie.
+
+**„Nie pamiętasz hasła?”** na ekranie logowania wysyła link do ustawienia hasła. Działa także dla zaproszonych osób, którym wygasł link z zaproszenia. Odpowiedź aplikacji jest zawsze taka sama, bez względu na to, czy konto istnieje. Na jedno konto wysyłany jest najwyżej jeden e-mail na minutę.
 
 Limit czasu funkcji to 300 s (`vercel.json`). Długie PDF-y są dzielone na części po 3 strony, czytane równolegle.
 
