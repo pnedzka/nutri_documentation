@@ -11,7 +11,8 @@ import type { User } from '@supabase/supabase-js';
 import type { Profile } from '../../shared/schema.js';
 import { requireAdmin } from '../_lib/auth.js';
 import { HttpError, appUrl, handle, json, readJson } from '../_lib/http.js';
-import { createAccountLink, sendAccountMail } from '../_lib/mail.js';
+import { createInvitedUser, issueAccountLink } from '../_lib/accountLinks.js';
+import { sendAccountMail } from '../_lib/mail.js';
 import { db } from '../_lib/supabase.js';
 
 const MIN_PASSWORD = 10;
@@ -57,7 +58,7 @@ const role = (value: unknown): Profile['role'] => (value === 'admin' ? 'admin' :
 
 export function POST(request: Request): Promise<Response> {
   return handle(async () => {
-    await requireAdmin(request);
+    const admin = await requireAdmin(request);
     const body = await readJson<{ email?: unknown; fullName?: unknown; password?: unknown; role?: unknown; invite?: unknown }>(request);
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const fullName = typeof body.fullName === 'string' && body.fullName.trim() ? body.fullName.trim().slice(0, 200) : null;
@@ -67,8 +68,8 @@ export function POST(request: Request): Promise<Response> {
     if (!invite && password.length < MIN_PASSWORD) throw new HttpError(400, `Hasło musi mieć co najmniej ${MIN_PASSWORD} znaków.`);
 
     const created = invite
-      ? await createAccountLink('invite', email, appUrl(request), fullName)
-      : await db().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName } }).then(({ data, error }) => ({ user: data.user, error, url: null }));
+      ? await createInvitedUser(email, fullName)
+      : await db().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName } }).then(({ data, error }) => ({ user: data.user, error }));
     if (created.error || !created.user) {
       const error = created.error as { code?: string; message?: string } | null;
       if (error && (error.code === 'email_exists' || /already/i.test(error.message ?? ''))) throw new HttpError(400, 'Użytkownik z tym adresem już istnieje.');
@@ -78,9 +79,10 @@ export function POST(request: Request): Promise<Response> {
     const profile: Profile = { id: created.user.id, email, full_name: fullName, role: role(body.role) };
     const { error: profileError } = await db().from('profiles').upsert(profile);
     if (profileError) throw profileError;
-    if (created.url) {
+    if (invite) {
       try {
-        await sendAccountMail('invite', email, created.url);
+        const url = await issueAccountLink('invite', created.user.id, appUrl(request));
+        await sendAccountMail({ kind: 'invite', email, url, appUrl: appUrl(request), invitedBy: admin.full_name || admin.email });
       } catch (error) {
         const reason = error instanceof HttpError ? error.message : 'błąd wysyłki';
         throw new HttpError(502, `Konto zostało utworzone, ale zaproszenia nie wysłano: ${reason} Wyślij je ponownie przyciskiem „Wyślij link” na liście kont.`);
@@ -112,20 +114,10 @@ export function PATCH(request: Request): Promise<Response> {
     if (body.sendLink === true) {
       const { data: found, error } = await db().auth.admin.getUserById(body.id);
       if (error || !found.user?.email) throw new HttpError(404, 'Nie znaleziono użytkownika.');
-      const email = found.user.email;
       // An unused invitation is sent again; anyone else gets a password-reset link.
       sent = accountStatus(found.user) === 'invited' ? 'invite' : 'recovery';
-      let link = await createAccountLink(sent, email, appUrl(request), found.user.user_metadata?.full_name as string | undefined);
-      // Supabase refuses a second invitation once the address counts as confirmed; a reset link does the same job.
-      if (sent === 'invite' && link.error) {
-        sent = 'recovery';
-        link = await createAccountLink('recovery', email, appUrl(request));
-      }
-      if (link.error || !link.url) {
-        console.error('[users] link', link.error);
-        throw new HttpError(400, 'Nie udało się utworzyć linku dla tego konta.');
-      }
-      await sendAccountMail(sent, email, link.url);
+      const url = await issueAccountLink(sent, found.user.id, appUrl(request));
+      await sendAccountMail({ kind: sent, email: found.user.email, url, appUrl: appUrl(request), invitedBy: admin.full_name || admin.email });
     }
     const query = Object.keys(changes).length ? db().from('profiles').update(changes) : db().from('profiles').select();
     const { data, error } = await query.eq('id', body.id).select('id, email, full_name, role').maybeSingle();

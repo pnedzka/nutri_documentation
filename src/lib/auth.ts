@@ -27,10 +27,22 @@ export const MIN_PASSWORD = 10;
 
 // A link from the app's e-mail carries a one-time token: exchange it for a session exactly once (React StrictMode
 // runs effects twice, and a second exchange would fail because the token is used up).
-const linkVerification =
-  supabase && authLink && authLink.kind !== 'error' && authLink.tokenHash
-    ? supabase.auth.verifyOtp({ token_hash: authLink.tokenHash, type: authLink.kind })
-    : null;
+async function openLink(): Promise<string | null> {
+  if (!supabase || !authLink || authLink.kind === 'error') return null;
+  let tokenHash = authLink.tokenHash;
+  let type: 'invite' | 'recovery' = authLink.kind;
+  if (authLink.linkToken) {
+    try {
+      ({ tokenHash, type } = await api<{ tokenHash: string; type: 'invite' | 'recovery' }>('/api/auth/accept', { method: 'POST', body: { token: authLink.linkToken } }));
+    } catch (e) {
+      return (e as Error).message;
+    }
+  }
+  if (!tokenHash) return null;
+  const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+  return error ? EXPIRED_LINK : null;
+}
+const linkVerification = authLink && authLink.kind !== 'error' && (authLink.tokenHash || authLink.linkToken) ? openLink() : null;
 
 export const useAuth = create<AuthState>((set, get) => {
   async function loadProfile(session: Session | null) {
@@ -81,8 +93,8 @@ export const useAuth = create<AuthState>((set, get) => {
       };
       // Listen only once the link's token is exchanged, so the first state seen is the new session.
       if (linkVerification) {
-        void linkVerification.then(({ error }) => {
-          if (error) set({ passwordSetup: null, linkError: EXPIRED_LINK });
+        void linkVerification.then((error) => {
+          if (error) set({ passwordSetup: null, linkError: error });
           listen();
         });
       } else {
