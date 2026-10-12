@@ -19,7 +19,11 @@ Aplikacja do neutralizacji dokumentów dostawców dla Nutri Partners. Pracownik 
 
   Pozostają kraj pochodzenia, numery weterynaryjne zakładu, partie i daty.
 - **Przegląd przed wydaniem dokumentu.** Oryginał jest obok wyniku, a wszystkie ostrzeżenia trzeba potwierdzić albo poprawić. Każdy fragment można kliknąć, aby go poprawić, oznaczyć do usunięcia albo przywrócić.
-- **PDF na papierze firmowym:** logo, stopka z danymi firmy, numer referencyjny dokumentu i numeracja stron. Miejsca nieczytelne są oznaczone w treści jako `[NIECZYTELNE]` / `[ILLEGIBLE]` i zebrane w zestawieniu na końcu.
+- **PDF na papierze firmowym, zawsze po angielsku:** logo, stopka z danymi firmy, numer referencyjny dokumentu i numeracja stron.
+  - Z dokumentów dwujęzycznych (np. chińsko-angielskich) trafia tylko część angielska.
+  - Dokumenty bez wersji angielskiej są tłumaczone.
+  - Oczywiste literówki w angielskim tekście są poprawiane (np. „ANALAYSIS” → „ANALYSIS”).
+  - Miejsca nieczytelne są oznaczone w treści jako `[ILLEGIBLE]` i zebrane w zestawieniu na końcu.
 - **Moje dokumenty:** lista własnych plików ze statusem i liczbą ostrzeżeń.
 - **Administrator:**
   - podgląd wszystkich dokumentów z oznaczeniem właściciela, filtrami po właścicielu i statusie oraz wyszukiwarką,
@@ -42,7 +46,14 @@ Dokumenty są wiążące, dlatego treść przepisywana przez model (Claude) jest
    - grafiki, które nie są przenoszone do PDF,
    - dane dostawcy, które mogły zostać w tekście,
    - uwagi z odczytu (pieczątki, podpisy, dopiski odręczne).
-5. **Bramka człowieka.** PDF można wygenerować dopiero, gdy każde ostrzeżenie jest potwierdzone lub poprawione. Wszystko trafia do historii zmian.
+5. **Wersja angielska.** Model podaje dla każdego fragmentu tekst do druku po angielsku, a dosłowna transkrypcja zostaje do porównania ze źródłem. Aplikacja sprawdza mechanicznie, czy:
+   - „część angielska” rzeczywiście występuje w oryginale,
+   - liczby i symbole (`<`, `≤`, `%`…) są takie same jak w oryginale,
+   - w tekście do druku nie zostały znaki spoza alfabetu angielskiego.
+
+   Każde tłumaczenie, poprawka pisowni i pominięte powtórzenie (np. chiński wiersz nad angielskim) daje ostrzeżenie do potwierdzenia. Na ekranie przeglądu takie fragmenty są podkreślone, a oryginał widać po najechaniu i w edytorze fragmentu.
+6. **Kontrola gotowego PDF.** Przed zapisaniem tekst PDF jest odczytywany z powrotem. Jeśli brakuje w nim choćby jednego znaku treści, plik nie jest zapisywany.
+7. **Bramka człowieka.** PDF można wygenerować dopiero, gdy każde ostrzeżenie jest potwierdzone lub poprawione. Wszystko trafia do historii zmian.
 
 Kod: `shared/verify.ts` (sprawdzanie), `shared/printable.ts` (co trafia na papier), `api/_lib/prompts.ts` (instrukcje dla modelu).
 
@@ -127,7 +138,7 @@ Funkcje API działają we Frankfurcie (`"regions": ["fra1"]` w `vercel.json`), o
 
 Dane firmy w stopce PDF są w pliku `shared/letterhead.ts`: pełna nazwa, adres, NIP, KRS, telefon, e-mail, www. Puste pola są pomijane, więc wystarczy uzupełnić je i wdrożyć ponownie.
 
-Logo pochodzi z `assets/logo.svg`. W PDF jest rysowane wektorowo, z pliku `api/_lib/pdf/logo.ts`, wygenerowanego z SVG. Czcionka to Inter z polskimi znakami, a znaki chińskie (i japońskie kanji) są drukowane czcionką Noto Sans SC (`assets/fonts`, licencja OFL). Jeśli dokument zawiera znaki, których żadna z tych czcionek nie ma (np. koreańskie, arabskie), PDF nie zostanie wygenerowany, a aplikacja pokaże, o które znaki chodzi. Żaden znak nie zniknie więc z wyniku po cichu.
+Logo pochodzi z `assets/logo.svg`. W PDF jest rysowane wektorowo, z pliku `api/_lib/pdf/logo.ts`, wygenerowanego z SVG. Tabele mają nagłówek w kolorze logo (powtarzany na każdej stronie, gdy tabela przechodzi na kolejną) i jasnoszare tło komórek z nazwą wiersza. Czcionka to Inter, a znaki chińskie (i japońskie kanji) są drukowane czcionką Noto Sans SC (`assets/fonts`, licencja OFL). Jeśli dokument zawiera znaki, których żadna z tych czcionek nie ma (np. koreańskie, arabskie), PDF nie zostanie wygenerowany, a aplikacja pokaże, o które znaki chodzi. Żaden znak nie zniknie więc z wyniku po cichu.
 
 ## Uruchomienie lokalne
 

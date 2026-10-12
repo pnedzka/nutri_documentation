@@ -54,9 +54,15 @@ export function applyReview(extraction: Extraction, warnings: Warning[], change:
       const { extraction: next, run } = cloneRun(extraction, change.ref);
       const before = { ...run };
       run.kind = 'text';
-      run.text = text;
       run.category = null;
       run.reason = null;
+      if (run.en_how) {
+        // The person corrects what is printed (the English version); the verbatim transcription stays for the record.
+        run.en = text;
+        run.en_how = 'edited';
+      } else {
+        run.text = text;
+      }
       return {
         extraction: next,
         // A corrected fragment resolves every open warning that points at it.

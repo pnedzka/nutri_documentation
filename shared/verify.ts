@@ -6,8 +6,11 @@
 // - compareWithSecondPass: for scans and photos, values of the first transcription must be confirmed by an
 //                          independent second transcription.
 // - structuralWarnings:  illegible spots, omitted figures, model notes and possible leaks of supplier data.
+// - englishWarnings:     the English version printed in the PDF keeps every number and symbol of the transcription;
+//                        translations, corrections and anything not in English go to the reviewer.
 
 import {
+  printedText,
   runLists,
   type Block,
   type Extraction,
@@ -330,13 +333,81 @@ export function findLeaks(extraction: Extraction): Warning[] {
   if (!needles.size) return [];
   for (const { block, run, ref } of eachRun(extraction)) {
     if (run.kind === 'redact') continue;
-    const hay = normalize(run.text).replace(/\s+/g, ' ');
+    const hay = normalize(`${run.text} ${printedText(run)}`).replace(/\s+/g, ' ');
     const hit = [...needles].find((n) => hay.includes(n));
     if (hit) {
       add(c, 'possible_leak', `Tekst „${shorten(hit, 60)}” został oznaczony do usunięcia, ale występuje też w tym miejscu.`, {
         page: block.page,
         ref,
       });
+    }
+  }
+  return finish(c);
+}
+
+// Numbers as written (decimal and thousands separators kept), independent of the words around them: "25kg" → "25".
+const NUMBER_RE = /\p{N}+(?:[.,]\p{N}+)*/gu;
+const SYMBOL_RE = /[<>≤≥±%=]/gu;
+// Letters of other alphabets or with diacritics (µ is a unit prefix, not a word).
+const NON_ENGLISH_LETTER = /(?![µμ])[^\P{L}a-zA-Z]/u;
+
+const valueSet = (s: string) => new Set([...(normalize(s).match(NUMBER_RE) ?? []), ...(normalize(s).match(SYMBOL_RE) ?? [])]);
+const difference = (a: Set<string>, b: Set<string>) => [...a].filter((x) => !b.has(x));
+
+/**
+ * Checks of the English version against the verbatim transcription. Nothing a model wrote in English is trusted on
+ * its own: copies must really be part of the original, values must be the same, and every translation, correction
+ * or skipped duplicate needs a person's confirmation.
+ */
+export function englishWarnings(extraction: Extraction): Warning[] {
+  const c = collector();
+  for (const { block, run, ref } of eachRun(extraction)) {
+    // Removed runs are not printed; documents processed before the English version have no `en_how`.
+    if (run.kind === 'redact' || !run.en_how) continue;
+    const en = run.en ?? '';
+    const where = { page: block.page, ref, excerpt: run.text };
+    switch (run.en_how) {
+      case 'english_part':
+        if (en.trim() && !compact(run.text).includes(compact(en))) {
+          add(c, 'english_check', `Tekst angielski „${shorten(en, 80)}” nie występuje w oryginale „${shorten(run.text, 80)}”.`, where);
+        }
+        break;
+      case 'corrected':
+        add(c, 'english_check', `Poprawiona pisownia: „${shorten(run.text, 80)}” → „${shorten(en, 80)}”.`, where);
+        break;
+      case 'translated':
+        add(c, 'translated', `„${shorten(run.text, 80)}” → „${shorten(en, 80)}”.`, where);
+        break;
+      case 'duplicate': {
+        // Every value of the skipped run must be printed in the English text of the same block.
+        const neighbours = valueSet(runLists(block).flatMap((l) => l.runs.filter((r) => r.kind !== 'redact').map(printedText)).join(' '));
+        const lost = difference(valueSet(run.text), neighbours);
+        add(
+          c,
+          'english_check',
+          `Pominięte jako powtórzenie tekstu angielskiego obok: „${shorten(run.text, 80)}”.${lost.length ? ` Wartości ${lost.slice(0, 6).join(', ')} nie występują w tekście angielskim tego bloku.` : ''}`,
+          where,
+        );
+        continue;
+      }
+    }
+    if (run.en_how !== 'same' && run.text.trim() && !en.trim()) {
+      add(c, 'english_check', `Brak wersji angielskiej dla „${shorten(run.text, 80)}”.`, where);
+      continue;
+    }
+    if (run.en_how !== 'same') {
+      const original = valueSet(run.text);
+      const english = valueSet(en);
+      const added = difference(english, original);
+      const missing = difference(original, english);
+      if (added.length || missing.length) {
+        const detail = [missing.length ? `brak: ${missing.join(', ')}` : '', added.length ? `dodane: ${added.join(', ')}` : ''].filter(Boolean).join('; ');
+        add(c, 'english_check', `Liczby lub symbole w wersji angielskiej różnią się od oryginału (${detail}).`, where);
+      }
+    }
+    const printed = printedText(run);
+    if (NON_ENGLISH_LETTER.test(printed)) {
+      add(c, 'english_check', `Tekst do druku zawiera znaki spoza alfabetu angielskiego: „${shorten(printed, 80)}”.`, where);
     }
   }
   return finish(c);

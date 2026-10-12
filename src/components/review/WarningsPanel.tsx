@@ -11,6 +11,8 @@ const KIND_STYLES: Record<WarningKind, string> = {
   uncertain: 'bg-amber-50 text-amber-800',
   possibly_omitted: 'bg-amber-50 text-amber-800',
   possible_leak: 'bg-purple-50 text-purple-700',
+  translated: 'bg-sky-50 text-sky-700',
+  english_check: 'bg-amber-50 text-amber-800',
   figure_omitted: 'bg-gray-100 text-gray-700',
   model_note: 'bg-blue-50 text-blue-700',
 };
@@ -21,11 +23,13 @@ const KIND_HELP: Record<WarningKind, string> = {
   uncertain: 'Dwa niezależne odczyty skanu dały różne wyniki. Porównaj z oryginałem i popraw lub potwierdź.',
   possibly_omitted: 'Tej treści ze źródła nie ma w wyniku. Dodaj ją albo potwierdź, jeśli celowo jej nie przenosimy (np. dane dostawcy).',
   possible_leak: 'Dane dostawcy mogą pozostać w tekście. Kliknij „Pokaż” i oznacz fragment do usunięcia albo potwierdź.',
+  translated: 'Tych fragmentów nie było po angielsku, więc zostały przetłumaczone. Porównaj tłumaczenie z oryginałem: popraw fragment („Pokaż”) albo potwierdź.',
+  english_check: 'Tekst w PDF różni się od oryginału: poprawiona pisownia, pominięte powtórzenie, inne liczby albo znaki spoza alfabetu angielskiego. Sprawdź i popraw albo potwierdź.',
   figure_omitted: 'Grafiki nie są przenoszone. Upewnij się, że nie zawierają danych technicznych, których brakuje w tekście.',
   model_note: 'Uwaga z odczytu dokumentu.',
 };
 
-const ORDER: WarningKind[] = ['unverified', 'illegible', 'uncertain', 'possibly_omitted', 'possible_leak', 'figure_omitted', 'model_note'];
+const ORDER: WarningKind[] = ['unverified', 'illegible', 'uncertain', 'english_check', 'possibly_omitted', 'translated', 'possible_leak', 'figure_omitted', 'model_note'];
 
 interface Props {
   warnings: Warning[];

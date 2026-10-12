@@ -2,6 +2,7 @@ import { Fragment, type ReactNode } from 'react';
 import { ImageOff } from 'lucide-react';
 import {
   REDACTION_LABELS,
+  printedText,
   sameRef,
   type Block,
   type Extraction,
@@ -11,6 +12,12 @@ import {
 } from '../../../shared/schema.ts';
 import { runDomId, runKey } from './refs';
 
+const EN_HOW_LABELS: Record<string, string> = {
+  english_part: 'Część angielska tekstu dwujęzycznego',
+  corrected: 'Poprawiona pisownia',
+  translated: 'Przetłumaczone',
+  edited: 'Poprawione ręcznie',
+};
 
 interface Props {
   extraction: Extraction;
@@ -21,8 +28,9 @@ interface Props {
 }
 
 /**
- * The transcription as the reviewer sees it: removed fragments struck through, illegible spots in red, fragments
- * with open warnings highlighted. Every fragment can be clicked to correct, remove or restore it.
+ * The document as it will be printed (in English): removed fragments struck through, illegible spots in red,
+ * fragments with open warnings highlighted, English versions that differ from the original underlined (the original
+ * is shown on hover). Every fragment can be clicked to correct, remove or restore it.
  */
 export function ExtractionView({ extraction, warnings, selected, onSelect, replacements }: Props) {
   const flagged = new Set(warnings.filter((w) => w.status === 'open' && w.ref).map((w) => runKey(w.ref!)));
@@ -35,9 +43,10 @@ export function ExtractionView({ extraction, warnings, selected, onSelect, repla
       const warn = flagged.has(runKey(ref)) ? 'bg-amber-100 underline decoration-amber-500 decoration-2 underline-offset-2' : '';
       const common = { id: runDomId(ref), onClick: () => onSelect(ref) };
       if (run.kind === 'illegible') {
+        const readable = printedText(run).trim();
         return (
           <span key={i} {...common} className={`${base} bg-red-100 text-red-800 font-semibold px-0.5`} title={run.reason ?? 'Nieczytelne'}>
-            [NIECZYTELNE{run.text.trim() ? `: ${run.text.trim()}…` : ''}]
+            [NIECZYTELNE{readable ? `: ${readable}…` : ''}]
           </span>
         );
       }
@@ -51,9 +60,22 @@ export function ExtractionView({ extraction, warnings, selected, onSelect, repla
           </span>
         );
       }
+      if (run.en_how === 'duplicate') {
+        return (
+          <span key={i} {...common} className={`${base} ${warn} whitespace-pre-wrap text-gray-400 line-through decoration-dotted`} title="Pominięte w PDF: powtórzenie tekstu angielskiego obok">
+            {run.text}
+          </span>
+        );
+      }
+      const changed = !!run.en_how && run.en_how !== 'same' && run.en !== run.text;
       return (
-        <span key={i} {...common} className={`${base} ${warn} whitespace-pre-wrap`}>
-          {run.text}
+        <span
+          key={i}
+          {...common}
+          className={`${base} ${warn} whitespace-pre-wrap ${changed && !warn ? 'underline decoration-dotted decoration-sky-500 underline-offset-2' : ''}`}
+          title={changed ? `${EN_HOW_LABELS[run.en_how!]}. Oryginał: ${run.text}` : undefined}
+        >
+          {printedText(run)}
         </span>
       );
     });
