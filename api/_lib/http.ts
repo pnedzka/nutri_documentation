@@ -1,0 +1,41 @@
+export function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+  });
+}
+
+/** An error with a message meant for the user (Polish) and an HTTP status. */
+export class HttpError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** Runs a handler and turns thrown errors into JSON responses. */
+export async function handle(fn: () => Promise<Response>): Promise<Response> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof HttpError) return json({ error: error.message }, error.status);
+    console.error(error);
+    return json({ error: 'Wystąpił nieoczekiwany błąd serwera.' }, 500);
+  }
+}
+
+/** Path segment after `/api/documents/`, e.g. the id in /api/documents/<id>/process. */
+export function documentId(request: Request): string {
+  const match = new URL(request.url).pathname.match(/\/api\/documents\/([0-9a-f-]{36})(?:\/|$)/i);
+  if (!match) throw new HttpError(400, 'Nieprawidłowy identyfikator dokumentu.');
+  return match[1].toLowerCase();
+}
+
+export async function readJson<T>(request: Request): Promise<T> {
+  try {
+    return (await request.json()) as T;
+  } catch {
+    throw new HttpError(400, 'Nieprawidłowe dane żądania.');
+  }
+}
