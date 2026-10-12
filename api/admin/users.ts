@@ -6,6 +6,7 @@
 //   GET   /api/admin/users   → { users: (Profile & { created_at, documents, status, last_sign_in_at })[] }
 //   POST  /api/admin/users   body { email, fullName?, role?, invite?, password? } → { user, invited }
 //   PATCH /api/admin/users   body { id, role?, fullName?, password?, sendLink? } → { user, sent? }
+//   DELETE /api/admin/users  body { id } → { deleted: email }
 
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '../../shared/schema.js';
@@ -124,5 +125,43 @@ export function PATCH(request: Request): Promise<Response> {
     if (error) throw error;
     if (!data) throw new HttpError(404, 'Nie znaleziono użytkownika.');
     return json({ user: data, sent });
+  });
+}
+
+/**
+ * Deletes an account. Only accounts without documents and without entries in any document's history: documents
+ * are binding and their history must stay complete, so such accounts are kept (they can be given a new password or
+ * left unused instead).
+ */
+export function DELETE(request: Request): Promise<Response> {
+  return handle(async () => {
+    const admin = await requireAdmin(request);
+    const body = await readJson<{ id?: unknown }>(request);
+    if (typeof body.id !== 'string') throw new HttpError(400, 'Brak identyfikatora użytkownika.');
+    if (body.id === admin.id) throw new HttpError(400, 'Nie możesz usunąć własnego konta.');
+
+    const { data: found, error: findError } = await db().auth.admin.getUserById(body.id);
+    if (findError || !found.user) throw new HttpError(404, 'Nie znaleziono użytkownika.');
+    const count = async (table: 'documents' | 'document_events', column: string) => {
+      const { count: n, error } = await db().from(table).select('id', { count: 'exact', head: true }).eq(column, body.id);
+      if (error) throw error;
+      return n ?? 0;
+    };
+    const [documents, finalized, events] = await Promise.all([
+      count('documents', 'owner_id'),
+      count('documents', 'finalized_by'),
+      count('document_events', 'actor_id'),
+    ]);
+    if (documents) throw new HttpError(409, `Tego konta nie można usunąć: ma ${documents} dokument(ów). Dokumenty i ich historia muszą zostać zachowane.`);
+    if (finalized || events) throw new HttpError(409, 'Tego konta nie można usunąć: występuje w historii zmian dokumentów, która musi zostać zachowana.');
+
+    // The profile and the account's e-mail links are deleted with the account (foreign keys with ON DELETE CASCADE).
+    const { error } = await db().auth.admin.deleteUser(body.id);
+    if (error) {
+      console.error('[users] delete', error);
+      throw new HttpError(500, 'Nie udało się usunąć konta.');
+    }
+    console.info('[users] deleted', found.user.email, 'by', admin.email);
+    return json({ deleted: found.user.email });
   });
 }

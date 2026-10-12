@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Mail, UserPlus, Users } from 'lucide-react';
+import { Mail, Trash2, UserPlus, Users } from 'lucide-react';
 import type { Profile } from '../../shared/schema.ts';
 import { Button } from '../components/Button';
 import { Card, CardBody, CardHeader } from '../components/Card';
@@ -82,6 +82,17 @@ export function AdminUsersPage() {
       await load();
     } catch (err) {
       toast.error('Nie udało się wysłać e-maila', (err as Error).message);
+    }
+  };
+
+  const remove = async (u: UserRow) => {
+    if (!confirm(`Usunąć konto ${u.email}?\n\nTej operacji nie można cofnąć. Osoba straci dostęp do aplikacji.`)) return;
+    try {
+      await api('/api/admin/users', { method: 'DELETE', body: { id: u.id } });
+      toast.success(`Konto ${u.email} zostało usunięte`);
+      await load();
+    } catch (err) {
+      toast.error('Nie udało się usunąć konta', (err as Error).message);
     }
   };
 
@@ -192,6 +203,19 @@ export function AdminUsersPage() {
                           Wyślij link
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => resetPassword(u)}>Nowe hasło</Button>
+                        {u.id !== me?.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 disabled:text-gray-300"
+                            disabled={u.documents > 0}
+                            title={u.documents > 0 ? 'Konta z dokumentami nie można usunąć: dokumenty i ich historia muszą zostać zachowane.' : 'Usuń konto'}
+                            onClick={() => void remove(u)}
+                          >
+                            <Trash2 size={14} className="mr-1" />
+                            Usuń
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
