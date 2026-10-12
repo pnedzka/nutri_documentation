@@ -47,6 +47,12 @@ Kod: `shared/verify.ts` (sprawdzanie), `shared/printable.ts` (co trafia na papie
 ## Wdrożenie (Vercel, projekt `nutri_documentation-nxdi`)
 
 1. **Baza i pliki.** Vercel → projekt → **Storage** → **Create** → **Supabase**, a potem podłącz bazę do projektu dla wszystkich środowisk. Integracja sama doda zmienne `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` i `POSTGRES_URL_NON_POOLING`.
+   - **Projekt Supabase już istnieje** (np. `nutri-documentation`, ref `edzjkumjutffodfpasmf`, ze schematem założonym przez konektor Supabase): zmienne ustaw ręcznie w Settings → Environment Variables:
+     - `NEXT_PUBLIC_SUPABASE_URL` i `SUPABASE_URL`: adres projektu, np. `https://edzjkumjutffodfpasmf.supabase.co`,
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: klucz publiczny (anon lub publishable),
+     - `SUPABASE_SERVICE_ROLE_KEY`: Supabase → Project Settings → API Keys → `service_role` / secret.
+
+     `POSTGRES_URL_NON_POOLING` jest wtedy opcjonalny. Bez niego migracja w buildzie jest pomijana.
 2. **Settings → Environment Variables:**
    - `ANTHROPIC_API_KEY`: klucz Claude API (console.anthropic.com).
    - `ADMIN_EMAILS`: adres e-mail administratora, kilka adresów rozdziel przecinkami.

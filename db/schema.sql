@@ -52,15 +52,23 @@ create table if not exists public.document_events (
 
 create index if not exists document_events_document_idx on public.document_events (document_id, created_at);
 
-create or replace function public.is_admin()
+-- Helper for the policies below. It lives in a schema the Data API does not expose, so it cannot be called
+-- through /rest/v1/rpc (Supabase security advisor 0028/0029).
+create schema if not exists private;
+
+create or replace function private.is_admin()
 returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
-  select exists (select 1 from public.profiles where id = auth.uid() and role = 'admin');
+  select exists (select 1 from public.profiles where id = (select auth.uid()) and role = 'admin');
 $$;
+
+revoke all on function private.is_admin() from public;
+grant usage on schema private to authenticated;
+grant execute on function private.is_admin() to authenticated;
 
 alter table public.profiles enable row level security;
 alter table public.documents enable row level security;
@@ -68,15 +76,15 @@ alter table public.document_events enable row level security;
 
 drop policy if exists profiles_read on public.profiles;
 create policy profiles_read on public.profiles for select to authenticated
-  using (id = auth.uid() or public.is_admin());
+  using (id = (select auth.uid()) or private.is_admin());
 
 drop policy if exists documents_read on public.documents;
 create policy documents_read on public.documents for select to authenticated
-  using (owner_id = auth.uid() or public.is_admin());
+  using (owner_id = (select auth.uid()) or private.is_admin());
 
 drop policy if exists document_events_read on public.document_events;
 create policy document_events_read on public.document_events for select to authenticated
-  using (exists (select 1 from public.documents d where d.id = document_id and (d.owner_id = auth.uid() or public.is_admin())));
+  using (exists (select 1 from public.documents d where d.id = document_id and (d.owner_id = (select auth.uid()) or private.is_admin())));
 
 -- Private buckets: files are only reachable through short-lived signed URLs issued by the API.
 -- (The API also creates them on first use, so a failure here does not block the deployment.)
