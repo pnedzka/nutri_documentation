@@ -7,7 +7,7 @@ import { toPrintable } from '../../../shared/printable.js';
 import { requireUser } from '../../_lib/auth.js';
 import { downloadName, loadDocument, logEvent, openWarnings, saveDocument, toPublic } from '../../_lib/documents.js';
 import { HttpError, documentId, handle, json } from '../../_lib/http.js';
-import { renderPdf } from '../../_lib/pdf/render.js';
+import { missingGlyphs, renderPdf } from '../../_lib/pdf/render.js';
 import { OUTPUTS, db } from '../../_lib/supabase.js';
 
 export function POST(request: Request): Promise<Response> {
@@ -20,6 +20,10 @@ export function POST(request: Request): Promise<Response> {
 
     const printable = toPrintable(row.extraction, { productName: row.np_product_name, productCode: row.np_product_code });
     if (!printable.blocks.length) throw new HttpError(409, 'Po neutralizacji dokument nie zawiera żadnej treści.');
+    const missing = missingGlyphs(printable);
+    if (missing.length) {
+      throw new HttpError(422, `PDF nie może zawierać znaków: ${missing.slice(0, 20).join(' ')} (brak czcionki). Zgłoś administratorowi.`);
+    }
     const pdf = await renderPdf({ printable, language: row.extraction.language, reference: row.id.slice(0, 8).toUpperCase() });
 
     const path = `${row.owner_id}/${row.id}/${Date.now()}.pdf`;

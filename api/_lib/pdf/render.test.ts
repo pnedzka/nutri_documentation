@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
+import { extractText } from 'unpdf';
 import { describe, expect, it } from 'vitest';
-import { renderPdf } from './render.js';
+import { missingGlyphs, renderPdf } from './render.js';
 import { toPrintable } from '../../../shared/printable.js';
 import type { Block, Extraction, Run } from '../../../shared/schema.js';
 
@@ -44,4 +45,37 @@ describe('renderPdf', () => {
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
     if (process.env.PDF_OUT) writeFileSync(process.env.PDF_OUT, pdf);
   }, 30_000);
+
+  it('keeps Chinese characters next to Latin text', async () => {
+    const cjk: Extraction = {
+      ...SAMPLE,
+      language: 'en',
+      blocks: [
+        b({ type: 'heading', level: 1, runs: [t('分析报告 CERTIFICATE OF ANALYSIS')] }, 'c1'),
+        b({ type: 'key_value', rows: [{ key: [t('外观 Appearance')], value: [t('白色粉末 white powder')] }] }, 'c2'),
+      ],
+    };
+    const printable = toPrintable(cjk, { productName: null, productCode: null });
+    expect(missingGlyphs(printable)).toEqual([]);
+    const pdf = await renderPdf({ printable, language: 'en', reference: 'ab12cd34' });
+    const { text } = await extractText(new Uint8Array(pdf), { mergePages: true });
+    const compact = text.replace(/\s+/g, '');
+    expect(compact).toContain('分析报告');
+    expect(compact).toContain('白色粉末');
+    expect(text).toContain('CERTIFICATE');
+  }, 30_000);
+});
+
+describe('missingGlyphs', () => {
+  it('lists characters no PDF font can draw', () => {
+    const printable = toPrintable(
+      { ...SAMPLE, blocks: [b({ type: 'paragraph', runs: [t('Zażółć 한글 ≤ 0,5 µg\u00ad\u200b')] }, 'k1')] },
+      { productName: null, productCode: null },
+    );
+    expect(missingGlyphs(printable)).toEqual(['한', '글']);
+  });
+
+  it('accepts the Polish sample', () => {
+    expect(missingGlyphs(toPrintable(SAMPLE, { productName: 'NP SMP 34', productCode: null }))).toEqual([]);
+  });
 });

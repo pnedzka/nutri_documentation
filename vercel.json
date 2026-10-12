@@ -12,7 +12,7 @@
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 300,
-      "includeFiles": "assets/**"
+      "includeFiles": "{assets/**,node_modules/pdfkit/js/standard-fonts/**}"
     }
   }
 }
