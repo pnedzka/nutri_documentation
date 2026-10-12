@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
+import { EXPIRED_LINK } from '../../shared/authLink.ts';
 import type { Profile } from '../../shared/schema.ts';
 import { api } from './api';
-import { supabase } from './supabase';
+import { authLink, supabase } from './supabase';
 
 type Status = 'loading' | 'unconfigured' | 'signedOut' | 'signedIn' | 'error';
 
@@ -11,14 +12,24 @@ interface AuthState {
   session: Session | null;
   profile: Profile | null;
   error: string | null;
+  /** Opened from an invitation or password-reset e-mail: the user must set a password before using the app. */
+  passwordSetup: 'invite' | 'recovery' | null;
+  /** Why the e-mail link did not work, shown on the login screen. */
+  linkError: string | null;
   init: () => () => void;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  setPassword: (password: string) => Promise<void>;
+  requestReset: (email: string) => Promise<void>;
 }
+
+export const MIN_PASSWORD = 10;
 
 export const useAuth = create<AuthState>((set, get) => {
   async function loadProfile(session: Session | null) {
     if (!session) {
+      // The link carried no usable session (already used or expired).
+      if (get().passwordSetup) set({ passwordSetup: null, linkError: EXPIRED_LINK });
       set({ status: 'signedOut', session: null, profile: null });
       return;
     }
@@ -42,12 +53,15 @@ export const useAuth = create<AuthState>((set, get) => {
     session: null,
     profile: null,
     error: null,
+    passwordSetup: authLink && authLink.kind !== 'error' ? authLink.kind : null,
+    linkError: authLink?.kind === 'error' ? authLink.message : null,
     init: () => {
       if (!supabase) {
         set({ status: 'unconfigured' });
         return () => {};
       }
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'PASSWORD_RECOVERY') set({ passwordSetup: 'recovery' });
         // Supabase recommends not awaiting inside the callback.
         setTimeout(() => void loadProfile(session), 0);
       });
@@ -55,12 +69,29 @@ export const useAuth = create<AuthState>((set, get) => {
     },
     signIn: async (email, password) => {
       if (!supabase) throw new Error('Aplikacja nie jest skonfigurowana.');
+      set({ linkError: null });
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Nieprawidłowy e-mail lub hasło.' : error.message);
     },
     signOut: async () => {
       await supabase?.auth.signOut();
-      set({ status: 'signedOut', session: null, profile: null });
+      set({ status: 'signedOut', session: null, profile: null, passwordSetup: null });
+    },
+    setPassword: async (password) => {
+      if (!supabase) throw new Error('Aplikacja nie jest skonfigurowana.');
+      if (password.length < MIN_PASSWORD) throw new Error(`Hasło musi mieć co najmniej ${MIN_PASSWORD} znaków.`);
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        throw new Error(error.code === 'same_password' ? 'Nowe hasło musi się różnić od poprzedniego.' : `Nie udało się ustawić hasła: ${error.message}`);
+      }
+      set({ passwordSetup: null });
+    },
+    requestReset: async (email) => {
+      if (!supabase) throw new Error('Aplikacja nie jest skonfigurowana.');
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+      if (error) {
+        throw new Error(error.status === 429 ? 'Zbyt wiele prób. Spróbuj ponownie za kilka minut.' : `Nie udało się wysłać linku: ${error.message}`);
+      }
     },
   };
 });

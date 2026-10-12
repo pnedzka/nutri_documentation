@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { UserPlus, Users } from 'lucide-react';
+import { Mail, UserPlus, Users } from 'lucide-react';
 import type { Profile } from '../../shared/schema.ts';
 import { Button } from '../components/Button';
 import { Card, CardBody, CardHeader } from '../components/Card';
@@ -9,7 +9,13 @@ import { useAuth } from '../lib/auth';
 import { formatDateTime } from '../lib/format';
 import { useToast } from '../lib/toast';
 
-type UserRow = Profile & { created_at: string; documents: number };
+type UserRow = Profile & { created_at: string; documents: number; status: 'active' | 'invited' | 'created'; last_sign_in_at: string | null };
+
+const STATUS: Record<UserRow['status'], { label: string; className: string }> = {
+  active: { label: 'Aktywne', className: 'bg-green-50 text-green-700' },
+  invited: { label: 'Zaproszone', className: 'bg-amber-50 text-amber-700' },
+  created: { label: 'Bez logowania', className: 'bg-gray-100 text-gray-600' },
+};
 
 function randomPassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
@@ -21,9 +27,10 @@ export function AdminUsersPage() {
   const me = useAuth((s) => s.profile);
   const toast = useToast();
   const [users, setUsers] = useState<UserRow[] | null>(null);
-  const [form, setForm] = useState({ email: '', fullName: '', password: randomPassword(), role: 'user' as Profile['role'] });
+  const emptyForm = () => ({ email: '', fullName: '', password: randomPassword(), role: 'user' as Profile['role'], invite: true });
+  const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
-  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
+  const [created, setCreated] = useState<{ email: string; password: string | null } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -43,10 +50,11 @@ export function AdminUsersPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      await api('/api/admin/users', { method: 'POST', body: form });
-      toast.success('Konto utworzone');
-      setCreated({ email: form.email.trim().toLowerCase(), password: form.password });
-      setForm({ email: '', fullName: '', password: randomPassword(), role: 'user' });
+      const body = form.invite ? { ...form, password: undefined } : form;
+      await api('/api/admin/users', { method: 'POST', body });
+      toast.success(form.invite ? 'Zaproszenie wysłane' : 'Konto utworzone');
+      setCreated({ email: form.email.trim().toLowerCase(), password: form.invite ? null : form.password });
+      setForm(emptyForm());
       await load();
     } catch (err) {
       toast.error('Nie udało się utworzyć konta', (err as Error).message);
@@ -65,6 +73,18 @@ export function AdminUsersPage() {
     }
   };
 
+  const sendLink = async (u: UserRow) => {
+    const what = u.status === 'invited' ? 'ponownie zaproszenie' : 'link do ustawienia nowego hasła';
+    if (!confirm(`Wysłać ${what} na adres ${u.email}?`)) return;
+    try {
+      const { sent } = await api<{ sent: 'invite' | 'recovery' }>('/api/admin/users', { method: 'PATCH', body: { id: u.id, sendLink: true } });
+      toast.success(sent === 'invite' ? `Zaproszenie wysłane ponownie na ${u.email}` : `Link do zmiany hasła wysłany na ${u.email}`);
+      await load();
+    } catch (err) {
+      toast.error('Nie udało się wysłać e-maila', (err as Error).message);
+    }
+  };
+
   const resetPassword = (u: UserRow) => {
     const password = randomPassword();
     if (!confirm(`Ustawić nowe hasło dla ${u.email}?\n\nNowe hasło: ${password}\n\nZapisz je i przekaż użytkownikowi.`)) return;
@@ -75,7 +95,9 @@ export function AdminUsersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Użytkownicy</h1>
-        <p className="text-sm text-gray-500 mt-1">Konta zakłada administrator. Użytkownik może zmienić hasło w „Moje konto”.</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Konta zakłada administrator. Nowa osoba dostaje e-mail z linkiem do ustawienia hasła, a hasło może potem zmienić w „Moje konto”.
+        </p>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-6 items-start">
         <Card>
@@ -87,18 +109,35 @@ export function AdminUsersPage() {
             <form onSubmit={create} className="space-y-4">
               <Input label="E-mail" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               <Input label="Imię i nazwisko" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
-              <Input label="Hasło startowe" required minLength={10} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input type="checkbox" className="mt-0.5" checked={form.invite} onChange={(e) => setForm({ ...form, invite: e.target.checked })} />
+                <span>
+                  Wyślij zaproszenie e-mailem
+                  <span className="block text-xs text-gray-500">Użytkownik sam ustawi hasło przez link w wiadomości.</span>
+                </span>
+              </label>
+              {!form.invite && (
+                <Input label="Hasło startowe" required minLength={10} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              )}
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" checked={form.role === 'admin'} onChange={(e) => setForm({ ...form, role: e.target.checked ? 'admin' : 'user' })} />
                 Administrator (widzi dokumenty wszystkich użytkowników)
               </label>
-              <Button type="submit" isLoading={busy}>Utwórz konto</Button>
+              <Button type="submit" isLoading={busy}>{form.invite ? 'Wyślij zaproszenie' : 'Utwórz konto'}</Button>
             </form>
             {created && (
               <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
-                <p className="font-medium">Konto utworzone – przekaż dane logowania:</p>
-                <p className="mt-1 font-mono break-all">{created.email}</p>
-                <p className="font-mono break-all">{created.password}</p>
+                {created.password ? (
+                  <>
+                    <p className="font-medium">Konto utworzone – przekaż dane logowania:</p>
+                    <p className="mt-1 font-mono break-all">{created.email}</p>
+                    <p className="font-mono break-all">{created.password}</p>
+                  </>
+                ) : (
+                  <p>
+                    Zaproszenie wysłane na <span className="font-medium break-all">{created.email}</span>. Link w wiadomości jest jednorazowy. Jeśli wygaśnie, wyślij go ponownie z listy kont.
+                  </p>
+                )}
               </div>
             )}
           </CardBody>
@@ -125,6 +164,12 @@ export function AdminUsersPage() {
                     <td className="px-6 py-3">
                       <p className="font-medium text-gray-900">{u.full_name || u.email}</p>
                       {u.full_name && <p className="text-xs text-gray-500">{u.email}</p>}
+                      <span
+                        className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS[u.status].className}`}
+                        title={u.last_sign_in_at ? `Ostatnie logowanie: ${formatDateTime(u.last_sign_in_at)}` : undefined}
+                      >
+                        {STATUS[u.status].label}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <select
@@ -139,9 +184,15 @@ export function AdminUsersPage() {
                       </select>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{u.documents}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">{formatDateTime(u.created_at)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => resetPassword(u)}>Nowe hasło</Button>
+                    <td className="px-4 py-3 text-gray-600">{formatDateTime(u.created_at)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col items-end gap-1 whitespace-nowrap">
+                        <Button variant="ghost" size="sm" onClick={() => void sendLink(u)} title={u.status === 'invited' ? 'Wyślij zaproszenie ponownie' : 'Wyślij link do zmiany hasła'}>
+                          <Mail size={14} className="mr-1" />
+                          Wyślij link
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => resetPassword(u)}>Nowe hasło</Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

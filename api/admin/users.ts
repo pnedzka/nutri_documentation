@@ -1,15 +1,46 @@
 // User accounts (administrator only). There is no public sign-up: the administrator creates every account.
 //
-//   GET   /api/admin/users   → { users: (Profile & { created_at, documents })[] }
-//   POST  /api/admin/users   body { email, fullName?, password, role? } → { user }
-//   PATCH /api/admin/users   body { id, role?, fullName?, password? } → { user }
+// By default a new account gets an invitation e-mail with a link to set the password (sent by Supabase Auth through
+// the SMTP server configured there). A start password set by the administrator remains as a fallback.
+//
+//   GET   /api/admin/users   → { users: (Profile & { created_at, documents, status, last_sign_in_at })[] }
+//   POST  /api/admin/users   body { email, fullName?, role?, invite?, password? } → { user, invited }
+//   PATCH /api/admin/users   body { id, role?, fullName?, password?, sendLink? } → { user, sent? }
 
+import type { User } from '@supabase/supabase-js';
 import type { Profile } from '../../shared/schema.js';
 import { requireAdmin } from '../_lib/auth.js';
-import { HttpError, handle, json, readJson } from '../_lib/http.js';
+import { HttpError, appUrl, handle, json, readJson } from '../_lib/http.js';
 import { db } from '../_lib/supabase.js';
 
 const MIN_PASSWORD = 10;
+
+/** active: has signed in; invited: invitation not used yet; created: start password, never signed in. */
+export type AccountStatus = 'active' | 'invited' | 'created';
+
+function accountStatus(user: User | undefined): AccountStatus {
+  if (user?.last_sign_in_at) return 'active';
+  return user?.invited_at && !user.email_confirmed_at ? 'invited' : 'created';
+}
+
+async function authUsers(): Promise<Map<string, User>> {
+  const users = new Map<string, User>();
+  for (let page = 1; ; page++) {
+    const { data, error } = await db().auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    for (const user of data.users) users.set(user.id, user);
+    if (data.users.length < 1000) return users;
+  }
+}
+
+/** Supabase errors from sending e-mail, translated for the administrator. */
+function mailError(error: { message: string; status?: number }): HttpError {
+  console.error('[users] e-mail', error);
+  if (error.status === 429 || /rate limit/i.test(error.message)) {
+    return new HttpError(429, 'Przekroczono limit wysyłki e-maili w Supabase. Spróbuj później albo ustaw własny serwer SMTP (README).');
+  }
+  return new HttpError(502, `Nie udało się wysłać e-maila (${error.message}). Sprawdź ustawienia SMTP w Supabase (README).`);
+}
 
 export function GET(request: Request): Promise<Response> {
   return handle(async () => {
@@ -20,7 +51,13 @@ export function GET(request: Request): Promise<Response> {
     if (docsError) throw docsError;
     const counts = new Map<string, number>();
     for (const d of docs ?? []) counts.set(d.owner_id, (counts.get(d.owner_id) ?? 0) + 1);
-    return json({ users: (data ?? []).map((u) => ({ ...u, documents: counts.get(u.id) ?? 0 })) });
+    const accounts = await authUsers();
+    return json({
+      users: (data ?? []).map((u) => {
+        const account = accounts.get(u.id);
+        return { ...u, documents: counts.get(u.id) ?? 0, status: accountStatus(account), last_sign_in_at: account?.last_sign_in_at ?? null };
+      }),
+    });
   });
 }
 
@@ -29,26 +66,33 @@ const role = (value: unknown): Profile['role'] => (value === 'admin' ? 'admin' :
 export function POST(request: Request): Promise<Response> {
   return handle(async () => {
     await requireAdmin(request);
-    const body = await readJson<{ email?: unknown; fullName?: unknown; password?: unknown; role?: unknown }>(request);
+    const body = await readJson<{ email?: unknown; fullName?: unknown; password?: unknown; role?: unknown; invite?: unknown }>(request);
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const fullName = typeof body.fullName === 'string' && body.fullName.trim() ? body.fullName.trim().slice(0, 200) : null;
+    const invite = body.invite !== false;
     const password = typeof body.password === 'string' ? body.password : '';
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, 'Nieprawidłowy adres e-mail.');
-    if (password.length < MIN_PASSWORD) throw new HttpError(400, `Hasło musi mieć co najmniej ${MIN_PASSWORD} znaków.`);
+    if (!invite && password.length < MIN_PASSWORD) throw new HttpError(400, `Hasło musi mieć co najmniej ${MIN_PASSWORD} znaków.`);
 
-    const { data, error } = await db().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName } });
-    if (error || !data.user) throw new HttpError(400, error?.message.includes('already') ? 'Użytkownik z tym adresem już istnieje.' : 'Nie udało się utworzyć konta.');
+    const { data, error } = invite
+      ? await db().auth.admin.inviteUserByEmail(email, { data: { full_name: fullName }, redirectTo: appUrl(request) })
+      : await db().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName } });
+    if (error || !data.user) {
+      if (error && (error.code === 'email_exists' || /already/i.test(error.message))) throw new HttpError(400, 'Użytkownik z tym adresem już istnieje.');
+      if (invite && error) throw mailError(error);
+      throw new HttpError(400, 'Nie udało się utworzyć konta.');
+    }
     const profile: Profile = { id: data.user.id, email, full_name: fullName, role: role(body.role) };
     const { error: profileError } = await db().from('profiles').upsert(profile);
     if (profileError) throw profileError;
-    return json({ user: profile }, 201);
+    return json({ user: profile, invited: invite }, 201);
   });
 }
 
 export function PATCH(request: Request): Promise<Response> {
   return handle(async () => {
     const admin = await requireAdmin(request);
-    const body = await readJson<{ id?: unknown; role?: unknown; fullName?: unknown; password?: unknown }>(request);
+    const body = await readJson<{ id?: unknown; role?: unknown; fullName?: unknown; password?: unknown; sendLink?: unknown }>(request);
     if (typeof body.id !== 'string') throw new HttpError(400, 'Brak identyfikatora użytkownika.');
     if (body.id === admin.id && body.role !== undefined && role(body.role) !== 'admin') {
       throw new HttpError(400, 'Nie możesz odebrać uprawnień administratora samemu sobie.');
@@ -63,9 +107,26 @@ export function PATCH(request: Request): Promise<Response> {
       const { error } = await db().auth.admin.updateUserById(body.id, { password: body.password });
       if (error) throw new HttpError(400, 'Nie udało się zmienić hasła.');
     }
-    const { data, error } = await db().from('profiles').update(changes).eq('id', body.id).select('id, email, full_name, role').maybeSingle();
+    let sent: 'invite' | 'recovery' | undefined;
+    if (body.sendLink === true) {
+      const { data: found, error } = await db().auth.admin.getUserById(body.id);
+      if (error || !found.user?.email) throw new HttpError(404, 'Nie znaleziono użytkownika.');
+      const redirectTo = appUrl(request);
+      // An unused invitation is sent again; anyone else gets a password-reset link.
+      sent = accountStatus(found.user) === 'invited' ? 'invite' : 'recovery';
+      let mailFailure = null;
+      if (sent === 'invite') {
+        ({ error: mailFailure } = await db().auth.admin.inviteUserByEmail(found.user.email, { data: found.user.user_metadata, redirectTo }));
+        // Supabase refuses a second invitation once the address counts as confirmed; a reset link does the same job.
+        if (mailFailure?.code === 'email_exists') sent = 'recovery';
+      }
+      if (sent === 'recovery') ({ error: mailFailure } = await db().auth.resetPasswordForEmail(found.user.email, { redirectTo }));
+      if (mailFailure) throw mailError(mailFailure);
+    }
+    const query = Object.keys(changes).length ? db().from('profiles').update(changes) : db().from('profiles').select();
+    const { data, error } = await query.eq('id', body.id).select('id, email, full_name, role').maybeSingle();
     if (error) throw error;
     if (!data) throw new HttpError(404, 'Nie znaleziono użytkownika.');
-    return json({ user: data });
+    return json({ user: data, sent });
   });
 }

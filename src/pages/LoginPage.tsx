@@ -6,11 +6,33 @@ import { Input } from '../components/Input';
 import { useAuth } from '../lib/auth';
 
 export function LoginPage() {
-  const { signIn, status, error: authError, signOut } = useAuth();
+  const { signIn, status, error: authError, signOut, linkError, requestReset } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  const sendReset = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await requestReset(email.trim());
+      setResetSent(true);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const switchMode = (reset: boolean) => {
+    setResetMode(reset);
+    setResetSent(false);
+    setError(null);
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,14 +63,39 @@ export function LoginPage() {
                   Wróć do logowania
                 </Button>
               </div>
+            ) : resetMode ? (
+              <form onSubmit={sendReset} className="space-y-4">
+                <div>
+                  <h1 className="text-base font-semibold text-gray-900">Nie pamiętasz hasła?</h1>
+                  <p className="mt-1 text-sm text-gray-500">Wyślemy link do ustawienia nowego hasła.</p>
+                </div>
+                <Input label="E-mail" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} leftIcon={<Mail size={16} />} />
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                {resetSent ? (
+                  <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
+                    Jeśli konto z tym adresem istnieje, wysłaliśmy na nie link. Sprawdź skrzynkę (także folder spam).
+                  </p>
+                ) : (
+                  <Button type="submit" className="w-full" isLoading={busy}>
+                    Wyślij link
+                  </Button>
+                )}
+                <button type="button" className="w-full text-xs text-gray-500 hover:text-gray-700" onClick={() => switchMode(false)}>
+                  Wróć do logowania
+                </button>
+              </form>
             ) : (
               <form onSubmit={submit} className="space-y-4">
+                {linkError && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{linkError}</p>}
                 <Input label="E-mail" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} leftIcon={<Mail size={16} />} />
                 <Input label="Hasło" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} leftIcon={<Lock size={16} />} />
                 {error && <p className="text-sm text-red-600">{error}</p>}
                 <Button type="submit" className="w-full" isLoading={busy}>
                   Zaloguj się
                 </Button>
+                <button type="button" className="w-full text-xs text-gray-500 hover:text-gray-700" onClick={() => switchMode(true)}>
+                  Nie pamiętasz hasła?
+                </button>
                 <p className="text-xs text-gray-500 text-center">Konto zakłada administrator aplikacji.</p>
               </form>
             )}
