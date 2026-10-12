@@ -3,6 +3,7 @@
 
 import path from 'node:path';
 import * as fontkit from 'fontkit';
+import { extractText } from 'unpdf';
 import { createElement as h, type ReactElement, type ReactNode } from 'react';
 import { Circle, Document, Font, Page, Path, Polygon, Rect, StyleSheet, Svg, Text, View, renderToBuffer } from '@react-pdf/renderer';
 import type { PrintBlock, PrintCell, Printable } from '../../../shared/printable.js';
@@ -49,6 +50,18 @@ let coverage: fontkit.Font[] | null = null;
  */
 export function missingGlyphs(printable: Printable): string[] {
   coverage ??= COVERAGE_FONTS.map((file) => fontkit.openSync(path.join(FONT_DIR, file)) as fontkit.Font);
+  const missing = new Set<string>();
+  for (const char of contentChars(printable)) {
+    if (!coverage.some((font) => font.hasGlyphForCodePoint(char.codePointAt(0)!))) missing.add(char);
+  }
+  return [...missing];
+}
+
+// Whitespace, control and invisible format characters (soft hyphen, zero-width space) carry no content.
+const INVISIBLE = /[\s\p{Cc}\p{Cf}]/u;
+
+/** Every visible character the PDF must contain: the document text and the illegible-spot annex. */
+function contentChars(printable: Printable): string[] {
   const texts: string[] = [];
   const cells = (list: PrintCell[]) => list.forEach((cell) => cell.forEach((run) => texts.push(run.text)));
   for (const block of printable.blocks) {
@@ -70,17 +83,24 @@ export function missingGlyphs(printable: Printable): string[] {
     }
   }
   for (const spot of printable.illegible) texts.push(spot.text, spot.reason ?? '');
+  return [...texts.join('')].filter((char) => !INVISIBLE.test(char));
+}
 
-  const missing = new Set<string>();
-  for (const text of texts) {
-    for (const char of text) {
-      const code = char.codePointAt(0)!;
-      // Whitespace, control and invisible format characters (soft hyphen, zero-width space) carry no content.
-      if (/[\s\p{Cc}\p{Cf}]/u.test(char)) continue;
-      if (!coverage.some((font) => font.hasGlyphForCodePoint(code))) missing.add(char);
-    }
-  }
-  return [...missing];
+/**
+ * Characters of the document that are not in the rendered PDF, found by reading its text back and comparing how
+ * often each character occurs. Catches anything the PDF library drops while laying out the text.
+ */
+export async function lostCharacters(pdf: Uint8Array, printable: Printable): Promise<string[]> {
+  const count = (chars: Iterable<string>) => {
+    const counts = new Map<string, number>();
+    for (const char of chars) counts.set(char, (counts.get(char) ?? 0) + 1);
+    return counts;
+  };
+  // NFKC on both sides, so that e.g. a full-width "＜" read back from the font compares equal however it is encoded.
+  const { text } = await extractText(new Uint8Array(pdf), { mergePages: true });
+  const inPdf = count([...text.normalize('NFKC')].filter((char) => !INVISIBLE.test(char)));
+  const expected = count([...contentChars(printable).join('').normalize('NFKC')].filter((char) => !INVISIBLE.test(char)));
+  return [...expected].filter(([char, n]) => (inPdf.get(char) ?? 0) < n).map(([char]) => char);
 }
 
 const INK = '#1A1A1A';
@@ -166,11 +186,19 @@ function Logo(): ReactElement {
 }
 
 function runsOf(cell: PrintCell, l: Labels): ReactNode[] {
-  return cell.map((run, i) =>
-    run.illegible
-      ? h(Text, { key: i, style: s.illegible }, run.text.trim() ? `[${l.illegible}: ${run.text.trim()}…]` : `[${l.illegible}]`)
-      : run.text,
-  );
+  // Neighbouring text runs are joined into one string: react-pdf (textkit 7) drops the first characters of a text
+  // child when it and the previous child both use the fallback font (e.g. "企业" + "标准" prints "企业").
+  const out: ReactNode[] = [];
+  cell.forEach((run, i) => {
+    if (run.illegible) {
+      out.push(h(Text, { key: i, style: s.illegible }, run.text.trim() ? `[${l.illegible}: ${run.text.trim()}…]` : `[${l.illegible}]`));
+    } else if (typeof out.at(-1) === 'string') {
+      out[out.length - 1] += run.text;
+    } else {
+      out.push(run.text);
+    }
+  });
+  return out;
 }
 
 function renderBlock(block: PrintBlock, i: number, l: Labels): ReactElement {
@@ -186,7 +214,7 @@ function renderBlock(block: PrintBlock, i: number, l: Labels): ReactElement {
         View,
         { key: i, style: { marginBottom: 6 } },
         ...block.items.map((item, j) =>
-          h(Text, { key: j, style: s.listItem }, '•  ', ...runsOf(item, l)),
+          h(Text, { key: j, style: s.listItem }, ...runsOf([{ text: '•  ', illegible: false }, ...item], l)),
         ),
       );
     case 'key_value':
