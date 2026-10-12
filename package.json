@@ -16,6 +16,7 @@
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/supabase-js": "^2.117.3",
     "@vercel/functions": "^3.9.11",
+    "fontkit": "^2.0.4",
     "lucide-react": "^1.55.0",
     "mammoth": "^1.13.0",
     "pdf-lib": "^1.17.1",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/fontkit": "^2.0.9",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

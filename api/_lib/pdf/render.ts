@@ -2,6 +2,7 @@
 // Written with createElement (no JSX) so the Vercel function needs no extra build step.
 
 import path from 'node:path';
+import * as fontkit from 'fontkit';
 import { createElement as h, type ReactElement, type ReactNode } from 'react';
 import { Circle, Document, Font, Page, Path, Polygon, Rect, StyleSheet, Svg, Text, View, renderToBuffer } from '@react-pdf/renderer';
 import type { PrintBlock, PrintCell, Printable } from '../../../shared/printable.js';
@@ -22,9 +23,64 @@ function registerFonts() {
       { src: path.join(FONT_DIR, 'Inter-Bold.ttf'), fontWeight: 700 },
     ],
   });
+  // Chinese (and Japanese kanji/kana) characters, which Inter does not have. Noto has no italic: the regular face
+  // stands in for it.
+  Font.register({
+    family: 'NotoSansSC',
+    fonts: [
+      { src: path.join(FONT_DIR, 'NotoSansSC-Regular.ttf'), fontWeight: 400 },
+      { src: path.join(FONT_DIR, 'NotoSansSC-Regular.ttf'), fontWeight: 400, fontStyle: 'italic' },
+      { src: path.join(FONT_DIR, 'NotoSansSC-SemiBold.ttf'), fontWeight: 600 },
+      { src: path.join(FONT_DIR, 'NotoSansSC-Bold.ttf'), fontWeight: 700 },
+    ],
+  });
   // Never split words with an added hyphen: codes and values must look exactly as in the source.
   Font.registerHyphenationCallback((word) => [word]);
   fontsReady = true;
+}
+
+// The regular face of each family in the fallback order. The other weights cover the same characters.
+const COVERAGE_FONTS = ['Inter-Regular.ttf', 'NotoSansSC-Regular.ttf'];
+let coverage: fontkit.Font[] | null = null;
+
+/**
+ * Characters of the document that none of the PDF fonts can draw. The renderer would print them as empty boxes or
+ * drop them, so a binding document with such characters must not be generated at all.
+ */
+export function missingGlyphs(printable: Printable): string[] {
+  coverage ??= COVERAGE_FONTS.map((file) => fontkit.openSync(path.join(FONT_DIR, file)) as fontkit.Font);
+  const texts: string[] = [];
+  const cells = (list: PrintCell[]) => list.forEach((cell) => cell.forEach((run) => texts.push(run.text)));
+  for (const block of printable.blocks) {
+    switch (block.type) {
+      case 'heading':
+      case 'paragraph':
+      case 'note':
+        cells([block.runs]);
+        break;
+      case 'list':
+        cells(block.items);
+        break;
+      case 'key_value':
+        block.rows.forEach((row) => cells([row.key, row.value]));
+        break;
+      case 'table':
+        [...block.header, ...block.body].forEach(cells);
+        break;
+    }
+  }
+  for (const spot of printable.illegible) texts.push(spot.text, spot.reason ?? '');
+
+  const missing = new Set<string>();
+  for (const text of texts) {
+    for (const char of text) {
+      const code = char.codePointAt(0)!;
+      // Whitespace, control and invisible format characters (soft hyphen, zero-width space) carry no content.
+      if (/[\s\p{Cc}\p{Cf}]/u.test(char)) continue;
+      if (!coverage.some((font) => font.hasGlyphForCodePoint(code))) missing.add(char);
+    }
+  }
+  return [...missing];
 }
 
 const INK = '#1A1A1A';
@@ -36,7 +92,8 @@ const ACCENT = LETTERHEAD.accent;
 const lh = (fontSize: number, factor: number) => `${(fontSize * factor).toFixed(1)}pt`;
 
 const s = StyleSheet.create({
-  page: { fontFamily: 'Inter', fontSize: 9.5, color: INK, paddingTop: 92, paddingBottom: 72, paddingHorizontal: 50 },
+  // Characters missing from Inter fall back to Noto Sans SC.
+  page: { fontFamily: ['Inter', 'NotoSansSC'], fontSize: 9.5, color: INK, paddingTop: 92, paddingBottom: 72, paddingHorizontal: 50 },
   header: { position: 'absolute', top: 30, left: 50, right: 50, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 8, borderBottomWidth: 1.2, borderBottomColor: ACCENT },
   headerRight: { fontSize: 8, color: MUTED },
   footer: { position: 'absolute', bottom: 28, left: 50, right: 50, borderTopWidth: 0.6, borderTopColor: LINE, paddingTop: 6, paddingRight: 110, fontSize: 7, color: MUTED, lineHeight: lh(7, 1.35) },

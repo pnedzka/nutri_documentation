@@ -75,7 +75,7 @@ Funkcje API działają we Frankfurcie (`"regions": ["fra1"]` w `vercel.json`), o
 
 Dane firmy w stopce PDF są w pliku `shared/letterhead.ts`: pełna nazwa, adres, NIP, KRS, telefon, e-mail, www. Puste pola są pomijane, więc wystarczy uzupełnić je i wdrożyć ponownie.
 
-Logo pochodzi z `assets/logo.svg`. W PDF jest rysowane wektorowo, z pliku `api/_lib/pdf/logo.ts`, wygenerowanego z SVG. Czcionka to Inter z polskimi znakami (`assets/fonts`, licencja OFL).
+Logo pochodzi z `assets/logo.svg`. W PDF jest rysowane wektorowo, z pliku `api/_lib/pdf/logo.ts`, wygenerowanego z SVG. Czcionka to Inter z polskimi znakami, a znaki chińskie (i japońskie kanji) są drukowane czcionką Noto Sans SC (`assets/fonts`, licencja OFL). Jeśli dokument zawiera znaki, których żadna z tych czcionek nie ma (np. koreańskie, arabskie), PDF nie zostanie wygenerowany, a aplikacja pokaże, o które znaki chodzi. Żaden znak nie zniknie więc z wyniku po cichu.
 
 ## Uruchomienie lokalne
 
