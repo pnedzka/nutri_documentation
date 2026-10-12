@@ -111,7 +111,7 @@ Nutri Partners prints the document in English only. For every run (including red
 For illegible runs, "en" covers only the readable part. Never add, explain or complete anything in "en".
 
 # Structure
-Use blocks: heading (level 1–3), paragraph, key_value (label → value pairs, e.g. parameter tables with two columns), table (header rows and body rows; every cell is a list of runs; keep empty cells as empty lists), list (one entry per item, without the bullet character), note (footnotes, small print), figure (charts, photos, drawings: put only a printed caption in "runs" if there is one, never describe the image).
+Use blocks: heading (level 1–3), paragraph, key_value (label → value pairs, e.g. parameter tables with two columns; also a grid with several "label: value" pairs per row, e.g. a certificate's product, batch and date fields – one key_value row per pair, in reading order), table (header rows and body rows; every cell is a list of runs; keep empty cells as empty lists), list (one entry per item, without the bullet character), note (footnotes, small print), figure (charts, photos, drawings: put only a printed caption in "runs" if there is one, never describe the image).
 Set unused fields to null. "page" is the 1-based page of the source where the block starts. Give blocks ids "b1", "b2", … in order.
 Runs are concatenated without separators, so keep the spaces between words inside the run texts.
 Put in "notes" (in Polish) anything you could not represent: stamps, signatures, handwritten additions, rotated or overlapping text, content you are unsure belongs to the document. Leave it empty when there is nothing to report.

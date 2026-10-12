@@ -56,12 +56,18 @@ describe('englishWarnings', () => {
     expect(kinds(doc([en('Lead 0.1 µg/kg', 'same')]))).toEqual([]);
   });
 
-  it('checks that a skipped duplicate has every value in the English text next to it', () => {
-    const ok = kinds(doc([en('水分 4.0%\n', 'duplicate', ''), en('Moisture 4.0%', 'same')]));
+  it('reports skipped duplicates together unless one has a value missing from the English text', () => {
+    const ok = englishWarnings(doc([en('水分 4.0%\n', 'duplicate', ''), en('Moisture 4.0%', 'same')], [en('灰分', 'duplicate', ''), en('Ash', 'same')]));
     expect(ok).toHaveLength(1);
-    expect(ok[0][1]).not.toContain('nie występują');
+    expect(ok[0]).toMatchObject({ kind: 'english_check', ref: null });
+    expect(ok[0].message).toContain('Pominięto 2 fragmentów powtarzających tekst angielski obok (np. „水分 4.0%”, „灰分”)');
     const lost = kinds(doc([en('水分 4.5%\n', 'duplicate', ''), en('Moisture 4.0%', 'same')]));
+    expect(lost).toHaveLength(1);
     expect(lost[0][1]).toContain('Wartości 4.5 nie występują');
+  });
+
+  it('does not ask about a change of character form only', () => {
+    expect(kinds(doc([en('（', 'translated', '(')], [en('Product name：', 'english_part', 'Product name:')]))).toEqual([]);
   });
 
   it('flags a translation that came back empty', () => {
@@ -80,6 +86,15 @@ describe('printing the English version', () => {
       { type: 'paragraph', runs: [{ text: 'Cadmium <1 ppm', illegible: false }] },
     ]);
     expect(halfWidth('（以 Pb 计)，ppm　')).toBe('(以 Pb 计),ppm ');
+  });
+
+  it('drops brackets that only enclosed a removed fragment', () => {
+    const redact = (text: string): Run => ({ kind: 'redact', text, category: 'supplier_identity', reason: null, en: null, en_how: 'same' });
+    const printable = toPrintable(
+      doc([en('企业标准（', 'duplicate', ''), en('（', 'same'), redact('Q/HHSW.020-2025'), en('）\nEnterprise Standard', 'english_part', ')\nEnterprise Standard')], [en('Lead (', 'same'), redact('ACME'), en(' method)', 'same')]),
+      { productName: null, productCode: null },
+    );
+    expect(printable.blocks.map((b) => (b.type === 'paragraph' ? b.runs.map((r) => r.text).join('') : ''))).toEqual(['Enterprise Standard', 'Lead ( method)']);
   });
 
   it('a correction on the review screen changes the English version and keeps the transcription', () => {

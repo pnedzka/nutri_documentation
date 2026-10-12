@@ -280,7 +280,9 @@ function renderBlock(block: PrintBlock, i: number, l: Labels): ReactElement {
       );
     case 'table': {
       const width = Math.max(1, ...[...block.header, ...block.body].map((r) => r.length));
-      const cellStyle = (head: boolean, c: number) => (head ? [s.cell, s.headCell] : c === 0 && width > 1 ? [s.cell, s.rowName] : s.cell);
+      // The first column names the rows only in a table with a header (parameter | specification | result …).
+      const rowNames = block.header.length > 0 && width > 1;
+      const cellStyle = (head: boolean, c: number) => (head ? [s.cell, s.headCell] : c === 0 && rowNames ? [s.cell, s.rowName] : s.cell);
       const row = (cells: PrintCell[], head: boolean, j: number) =>
         h(
           View,
