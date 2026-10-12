@@ -1,0 +1,59 @@
+import Anthropic from '@anthropic-ai/sdk';
+
+export const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
+type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+const EFFORT = (process.env.CLAUDE_EFFORT as Effort | undefined) || 'medium';
+
+let client: Anthropic | null = null;
+const getClient = () => (client ??= new Anthropic({ maxRetries: 3 }));
+
+/** A failure the user should see as is (Polish). */
+export class PipelineError extends Error {}
+
+export type UserContent = Anthropic.Beta.BetaContentBlockParam[];
+
+/**
+ * One structured-output request. Streams (long transcriptions take minutes) and parses the JSON answer.
+ * Server-side refusal fallbacks are on: a declined request is re-run on a fallback model in the same call.
+ * Set CLAUDE_FALLBACKS=off to disable them.
+ */
+export async function structuredCall<T>(args: {
+  system: string;
+  content: UserContent;
+  schema: Record<string, unknown>;
+  effort?: Effort;
+}): Promise<T> {
+  const useFallbacks = process.env.CLAUDE_FALLBACKS !== 'off';
+  const stream = getClient().beta.messages.stream({
+    model: MODEL,
+    max_tokens: 64000,
+    ...(useFallbacks ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const } : {}),
+    thinking: { type: 'adaptive' },
+    output_config: { effort: args.effort ?? EFFORT, format: { type: 'json_schema', schema: args.schema } },
+    system: args.system,
+    messages: [{ role: 'user', content: args.content }],
+  });
+  let message: Anthropic.Beta.BetaMessage;
+  try {
+    message = await stream.finalMessage();
+  } catch (error) {
+    if (error instanceof Anthropic.AuthenticationError) throw new PipelineError('Nieprawidłowy klucz ANTHROPIC_API_KEY.');
+    if (error instanceof Anthropic.RateLimitError) throw new PipelineError('Przekroczono limit zapytań do Claude. Spróbuj ponownie za chwilę.');
+    if (error instanceof Anthropic.BadRequestError) throw new PipelineError(`Claude odrzucił zapytanie: ${error.message}`);
+    if (error instanceof Anthropic.APIError) throw new PipelineError(`Błąd Claude API (${error.status ?? 'brak połączenia'}). Spróbuj ponownie.`);
+    throw error;
+  }
+  if (message.stop_reason === 'refusal') throw new PipelineError('Claude odmówił przetworzenia tego dokumentu.');
+  if (message.stop_reason === 'max_tokens') {
+    throw new PipelineError('Dokument jest zbyt obszerny, by przetworzyć go w całości. Podziel go na mniejsze pliki.');
+  }
+  const text = message.content
+    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('');
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new PipelineError('Odpowiedź Claude nie jest poprawnym JSON-em. Spróbuj przetworzyć dokument ponownie.');
+  }
+}
