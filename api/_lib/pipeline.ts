@@ -1,6 +1,7 @@
 // Processing of an uploaded document: model transcription, deterministic verification, warnings for the review.
 
 import {
+  EN_HOW,
   REDACTION_CATEGORIES,
   type Block,
   type BlockType,
@@ -10,6 +11,7 @@ import {
 } from '../../shared/schema.js';
 import {
   compareWithSecondPass,
+  englishWarnings,
   findOmissions,
   numberWarnings,
   structuralWarnings,
@@ -57,7 +59,7 @@ export async function processFile(bytes: Uint8Array, mimeType: string): Promise<
   ]);
 
   const extraction = mergeTranscriptions(transcriptions, source.parts, source);
-  const warnings: Warning[] = [...structuralWarnings(extraction)];
+  const warnings: Warning[] = [...structuralWarnings(extraction), ...englishWarnings(extraction)];
   if (source.sourcePages) {
     warnings.push(...verifyAgainstSource(extraction, source.sourcePages));
     warnings.push(...findOmissions(extraction, source.sourcePages));
@@ -100,7 +102,11 @@ function sanitizeRun(value: unknown): Run | null {
   if (!r || typeof r.text !== 'string') return null;
   const kind = r.kind === 'illegible' || r.kind === 'redact' ? r.kind : 'text';
   const category = kind === 'redact' && REDACTION_CATEGORIES.includes(r.category as never) ? r.category! : kind === 'redact' ? 'supplier_identity' : null;
-  return { kind, text: r.text, category, reason: typeof r.reason === 'string' && r.reason.trim() ? r.reason.trim() : null };
+  const reason = typeof r.reason === 'string' && r.reason.trim() ? r.reason.trim() : null;
+  // A missing or unknown English mode means "print as transcribed"; englishWarnings flags anything not in English.
+  const enHow = EN_HOW.includes(r.en_how as never) ? (r.en_how as (typeof EN_HOW)[number]) : 'same';
+  const en = enHow === 'same' ? null : enHow === 'duplicate' ? '' : typeof r.en === 'string' ? r.en : null;
+  return { kind, text: r.text, category, reason, en, en_how: enHow };
 }
 
 const runs = (value: unknown): Run[] => (Array.isArray(value) ? value.map(sanitizeRun).filter((r): r is Run => r !== null) : []);

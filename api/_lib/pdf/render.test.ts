@@ -42,7 +42,7 @@ export const SAMPLE: Extraction = {
 
 describe('renderPdf', () => {
   it('renders the letterhead document', async () => {
-    const pdf = await renderPdf({ printable: toPrintable(SAMPLE, { productName: 'NP SMP 34', productCode: null }), language: 'pl', reference: 'ab12cd34' });
+    const pdf = await renderPdf({ printable: toPrintable(SAMPLE, { productName: 'NP SMP 34', productCode: null }), reference: 'ab12cd34' });
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
     if (process.env.PDF_OUT) writeFileSync(process.env.PDF_OUT, pdf);
   }, 30_000);
@@ -58,7 +58,7 @@ describe('renderPdf', () => {
     };
     const printable = toPrintable(cjk, { productName: null, productCode: null });
     expect(missingGlyphs(printable)).toEqual([]);
-    const pdf = await renderPdf({ printable, language: 'en', reference: 'ab12cd34' });
+    const pdf = await renderPdf({ printable, reference: 'ab12cd34' });
     const { text } = await extractText(new Uint8Array(pdf), { mergePages: true });
     const compact = text.replace(/\s+/g, '');
     expect(compact).toContain('分析报告');
@@ -74,14 +74,14 @@ describe('lostCharacters', () => {
     // A redaction between "（" and "）" left two runs that both start and end in the fallback font; react-pdf used to
     // drop the start of the second one.
     const printable = paragraph('企业标准（', '）\nEnterprise Standard', ' 企业', '标准 abc');
-    const pdf = await renderPdf({ printable, language: 'en', reference: 'ab12cd34' });
+    const pdf = await renderPdf({ printable, reference: 'ab12cd34' });
     expect(await lostCharacters(pdf, printable)).toEqual([]);
     const { text } = await extractText(new Uint8Array(pdf), { mergePages: true });
     expect(text.replace(/\s+/g, '')).toContain('企业标准（）EnterpriseStandard企业标准abc');
   }, 30_000);
 
   it('reports characters the PDF does not contain', async () => {
-    const pdf = await renderPdf({ printable: paragraph('Wilgotność ≤ 4,0 %'), language: 'pl', reference: 'ab12cd34' });
+    const pdf = await renderPdf({ printable: paragraph('Wilgotność ≤ 4,0 %'), reference: 'ab12cd34' });
     expect(await lostCharacters(pdf, paragraph('Wilgotność ≤ 4,0 %'))).toEqual([]);
     expect(await lostCharacters(pdf, paragraph('Wilgotność ≤ 4,0 % 漢'))).toEqual(['漢']);
     expect(await lostCharacters(pdf, paragraph('Wilgotność ≤ 4,00 %'))).toEqual(['0']);
@@ -89,7 +89,7 @@ describe('lostCharacters', () => {
 
   it('accepts the Polish sample with its illegible spot', async () => {
     const printable = toPrintable(SAMPLE, { productName: 'NP SMP 34', productCode: null });
-    const pdf = await renderPdf({ printable, language: 'pl', reference: 'ab12cd34' });
+    const pdf = await renderPdf({ printable, reference: 'ab12cd34' });
     expect(await lostCharacters(pdf, printable)).toEqual([]);
   }, 30_000);
 });

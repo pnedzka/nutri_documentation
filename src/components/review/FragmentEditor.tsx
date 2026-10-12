@@ -5,6 +5,7 @@ import {
   REDACTION_LABELS,
   WARNING_LABELS,
   findRun,
+  printedText,
   sameRef,
   type Extraction,
   type RedactionCategory,
@@ -34,10 +35,13 @@ export function FragmentEditor(props: Props) {
   const { extraction, warnings, selected, editable, busy } = props;
   const run = findRun(extraction, selected);
   // The parent remounts this component (key) when another fragment is selected, which resets the draft.
-  const [draft, setDraft] = useState(run?.text ?? '');
+  const [draft, setDraft] = useState(run ? printedText(run) : '');
   const [category, setCategory] = useState<RedactionCategory>('supplier_identity');
   if (!run) return null;
   const related = warnings.filter((w) => sameRef(w.ref, selected));
+  const printed = printedText(run);
+  // The verbatim transcription, shown when the English version printed in the PDF differs from it.
+  const original = run.kind !== 'redact' && run.en_how && run.en_how !== 'same' && run.en !== run.text ? run.text : null;
   const page = extraction.blocks.find((b) => b.id === selected.blockId)?.page;
 
   return (
@@ -75,8 +79,15 @@ export function FragmentEditor(props: Props) {
           </div>
         ))}
 
+        {original !== null && (
+          <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+            <p className="font-semibold text-gray-700">Oryginał (transkrypcja):</p>
+            <p className="mt-0.5 whitespace-pre-wrap">{original}</p>
+          </div>
+        )}
         {editable && run.kind !== 'redact' && (
           <>
+            {original !== null && <p className="text-xs font-semibold text-gray-700">Tekst w PDF (po angielsku):</p>}
             <textarea
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#CC1F1F]"
               rows={Math.min(8, Math.max(2, Math.ceil(draft.length / 60)))}
@@ -85,10 +96,10 @@ export function FragmentEditor(props: Props) {
             />
             <p className="text-xs text-gray-500">Poprawiaj wyłącznie na podstawie oryginału dokumentu. Każda zmiana jest zapisywana w historii.</p>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" disabled={busy || draft === run.text} onClick={() => props.onEdit(draft)}>
+              <Button size="sm" disabled={busy || draft === printed} onClick={() => props.onEdit(draft)}>
                 <Save size={14} /> Zapisz poprawkę
               </Button>
-              {run.text && (
+              {printed && (
                 <Button
                   size="sm"
                   variant="secondary"
@@ -124,7 +135,8 @@ export function FragmentEditor(props: Props) {
             </Button>
           </>
         )}
-        {!editable && <p className="rounded bg-gray-50 px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap">{run.text || '—'}</p>}
+        {!editable && run.kind !== 'redact' && <p className="rounded bg-gray-50 px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap">{printed || '—'}</p>}
+        {!editable && run.kind === 'redact' && <p className="rounded bg-gray-50 px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap">{run.text || '—'}</p>}
       </CardBody>
     </Card>
   );

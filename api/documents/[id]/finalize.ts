@@ -24,7 +24,7 @@ export function POST(request: Request): Promise<Response> {
     if (missing.length) {
       throw new HttpError(422, `PDF nie może zawierać znaków: ${missing.slice(0, 20).join(' ')} (brak czcionki). Zgłoś administratorowi.`);
     }
-    const pdf = await renderPdf({ printable, language: row.extraction.language, reference: row.id.slice(0, 8).toUpperCase() });
+    const pdf = await renderPdf({ printable, reference: row.id.slice(0, 8).toUpperCase() });
     // The PDF is read back before it is stored: a binding document must never lose a character on the way to paper.
     const lost = await lostCharacters(pdf, printable);
     if (lost.length) {

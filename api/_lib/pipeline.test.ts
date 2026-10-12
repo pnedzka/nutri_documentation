@@ -91,7 +91,23 @@ describe('processFile', () => {
       page_count: 1,
       notes: ['  '],
       blocks: [
-        { id: 'z', type: 'heading', page: 7, level: 9, runs: [{ kind: 'redact', text: 'ACME', category: 'bogus', reason: '' }], items: null, rows: null, header: null, body: null },
+        {
+          id: 'z',
+          type: 'heading',
+          page: 7,
+          level: 9,
+          runs: [
+            { kind: 'redact', text: 'ACME', category: 'bogus', reason: '' },
+            { kind: 'text', text: ' 水分', category: null, reason: null, en: ' Moisture', en_how: 'translated' },
+            { kind: 'text', text: ' 4%', category: null, reason: null, en: ' 4 %', en_how: 'same' },
+            { kind: 'text', text: ' 灰分', category: null, reason: null, en: 'Ash', en_how: 'duplicate' },
+            { kind: 'text', text: ' x', category: null, reason: null, en: 'y', en_how: 'bogus' },
+          ],
+          items: null,
+          rows: null,
+          header: null,
+          body: null,
+        },
         { id: 'z', type: 'unknown', page: 1 },
       ],
     });
@@ -102,6 +118,13 @@ describe('processFile', () => {
     expect(extraction.blocks).toHaveLength(1);
     const block = extraction.blocks[0] as Extraction['blocks'][number];
     expect(block).toMatchObject({ id: 'b1', page: 1, level: 3 });
-    expect(block.runs?.[0]).toEqual({ kind: 'redact', text: 'ACME', category: 'supplier_identity', reason: null });
+    expect(block.runs).toEqual([
+      { kind: 'redact', text: 'ACME', category: 'supplier_identity', reason: null, en: null, en_how: 'same' },
+      { kind: 'text', text: ' 水分', category: null, reason: null, en: ' Moisture', en_how: 'translated' },
+      // "same" prints the transcription, "duplicate" prints nothing, an unknown mode falls back to "same".
+      { kind: 'text', text: ' 4%', category: null, reason: null, en: null, en_how: 'same' },
+      { kind: 'text', text: ' 灰分', category: null, reason: null, en: '', en_how: 'duplicate' },
+      { kind: 'text', text: ' x', category: null, reason: null, en: null, en_how: 'same' },
+    ]);
   });
 });

@@ -1,18 +1,16 @@
 // Company details printed on the Nutri Partners letterhead (PDF header and footer).
-// Empty fields are simply left out, so the letterhead looks right before all details are filled in.
+// Empty fields are simply left out.
 export const LETTERHEAD = {
   companyName: 'Nutri Partners',
-  /** Full legal name, e.g. "Nutri Partners Sp. z o.o." – fill in. */
-  legalName: '',
-  /** Street, postcode and city in one line – fill in. */
-  address: '',
-  /** e.g. "NIP 000-000-00-00" – fill in. */
-  taxId: '',
-  /** e.g. "KRS 0000000000" – fill in. */
+  legalName: 'Nutri Partners Sp. z o.o.',
+  /** Street, postcode, city and country in one line. */
+  address: 'Prof. Ludwika Chmaja 6 str., 35-119 Rzeszów, Poland',
+  taxId: 'VAT ID: PL8133925741',
+  /** e.g. "KRS 0000000000"; empty = not printed. */
   registry: '',
-  phone: '',
-  email: '',
-  website: 'nutripartners.co',
+  phone: '+48 736 311 704',
+  email: 'office@nutripartners.co',
+  website: 'www.nutripartners.co',
   /** Accent colour of the logo. */
   accent: '#a50029',
 };

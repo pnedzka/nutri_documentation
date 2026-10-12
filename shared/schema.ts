@@ -4,6 +4,10 @@
 // (only the readable part is kept, never a guess) or a fragment marked for removal during neutralization.
 // Runs are never deleted by the model: removal happens when the PDF is rendered, so every decision stays
 // visible on the review screen and can be undone.
+//
+// The PDF is printed in English only. Next to the verbatim text every run carries its English version (`en`):
+// the English part of a bilingual text, a spelling-corrected or a translated text. `text` stays the verbatim
+// transcription that is checked against the source; `en` is checked against `text` and reviewed by a person.
 
 export const REDACTION_CATEGORIES = ['supplier_identity', 'trade_name', 'supplier_code', 'commercial_terms'] as const;
 export type RedactionCategory = (typeof REDACTION_CATEGORIES)[number];
@@ -17,6 +21,18 @@ export const REDACTION_LABELS: Record<RedactionCategory, string> = {
 
 export type RunKind = 'text' | 'illegible' | 'redact';
 
+/**
+ * How the English version of a run was made:
+ * - same:         already English or language-neutral (numbers, codes); printed as `text`
+ * - english_part: the English part of a bilingual text, copied from `text`
+ * - corrected:    English text with an obvious spelling mistake fixed
+ * - translated:   translated from another language
+ * - duplicate:    the content is given in English right next to it; nothing is printed
+ * - edited:       written by a person on the review screen
+ */
+export const EN_HOW = ['same', 'english_part', 'corrected', 'translated', 'duplicate'] as const;
+export type EnHow = (typeof EN_HOW)[number] | 'edited';
+
 export interface Run {
   kind: RunKind;
   /** Verbatim text. For `illegible`: only the part that can be read (may be empty). */
@@ -25,6 +41,14 @@ export interface Run {
   category: RedactionCategory | null;
   /** Why the run is illegible or removed (short, Polish). */
   reason: string | null;
+  /** English version printed in the PDF; null = print `text` as is. Missing in documents processed before. */
+  en?: string | null;
+  en_how?: EnHow | null;
+}
+
+/** What the PDF prints for a run (removed runs aside). */
+export function printedText(run: Run): string {
+  return run.en ?? run.text;
 }
 
 export type BlockType = 'heading' | 'paragraph' | 'key_value' | 'table' | 'list' | 'note' | 'figure';
@@ -69,6 +93,8 @@ export type WarningKind =
   | 'uncertain'
   | 'figure_omitted'
   | 'possible_leak'
+  | 'translated'
+  | 'english_check'
   | 'model_note';
 
 export const WARNING_LABELS: Record<WarningKind, string> = {
@@ -78,6 +104,8 @@ export const WARNING_LABELS: Record<WarningKind, string> = {
   uncertain: 'Niepewny odczyt',
   figure_omitted: 'Grafika pominięta',
   possible_leak: 'Możliwe dane dostawcy',
+  translated: 'Tłumaczenie',
+  english_check: 'Wersja angielska',
   model_note: 'Uwaga',
 };
 

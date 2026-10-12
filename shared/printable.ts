@@ -1,8 +1,9 @@
 // Turns a reviewed extraction into what goes on paper: fragments marked for removal are dropped (or replaced by the
 // Nutri Partners product name / code), rows, columns and blocks left empty by the removal disappear.
 // Nothing is ever added here except those two replacement values entered by the user.
+// Runs are printed in their English version (`en`) when they have one.
 
-import type { Block, Extraction, Run } from './schema.js';
+import { printedText, type Block, type Extraction, type Run } from './schema.js';
 
 export interface PrintRun {
   text: string;
@@ -52,11 +53,12 @@ export function toPrintable(extraction: Extraction, replacements: Replacements):
         continue;
       }
       lastReplaced = null;
+      const text = halfWidth(printedText(run));
       if (run.kind === 'illegible') {
-        illegible.push({ page, text: run.text, reason: run.reason });
-        out.push({ text: run.text, illegible: true });
+        illegible.push({ page, text, reason: run.reason });
+        out.push({ text, illegible: true });
       } else {
-        out.push({ text: run.text, illegible: false });
+        out.push({ text, illegible: false });
       }
     }
     return tidy(out);
@@ -112,6 +114,14 @@ function printBlock(block: Block, cell: (runs: Run[] | null | undefined, page: n
       return { type: 'table', header: header.map(pick).filter((r) => !r.every(isEmpty)), body: body.map(pick) };
     }
   }
+}
+
+/**
+ * Full-width forms used in East Asian documents ("＜1", "（", "，") printed as their ASCII equivalents, which they
+ * are by definition (Unicode compatibility mapping): the English document is set in one font.
+ */
+export function halfWidth(text: string): string {
+  return text.replace(/[\uFF01-\uFF5E]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/\u3000/g, ' ');
 }
 
 /** Keeps the whitespace around a replaced fragment so "Product: ACME Milk 26" becomes "Product: NP Milk". */

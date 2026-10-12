@@ -1,12 +1,13 @@
 // Instructions and output schemas for the two model passes.
 //
-// Pass A (transcription) produces the structured document. Pass B (independent reading) only exists for scans and
+// Pass A (transcription) produces the structured document: the verbatim text and, for every run, the English
+// version printed on the Nutri Partners letterhead. Pass B (independent reading) only exists for scans and
 // photos: a plain-text reading made without seeing pass A, used to confirm the values pass A read.
 
 const RUN = {
   type: 'object',
   additionalProperties: false,
-  required: ['kind', 'text', 'category', 'reason'],
+  required: ['kind', 'text', 'category', 'reason', 'en', 'en_how'],
   properties: {
     kind: { type: 'string', enum: ['text', 'illegible', 'redact'] },
     text: { type: 'string' },
@@ -14,6 +15,8 @@ const RUN = {
       anyOf: [{ type: 'string', enum: ['supplier_identity', 'trade_name', 'supplier_code', 'commercial_terms'] }, { type: 'null' }],
     },
     reason: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+    en: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+    en_how: { type: 'string', enum: ['same', 'english_part', 'corrected', 'translated', 'duplicate'] },
   },
 } as const;
 
@@ -80,7 +83,7 @@ export const TRANSCRIPTION_SYSTEM = `You transcribe supplier documents (product 
 
 # Fidelity rules (most important)
 - Transcribe verbatim, character for character: numbers, decimal separators, units, symbols (<, >, ≤, ≥, ±, %, °C, µ), ranges, footnote markers, capitalisation, spelling – including the supplier's own typos.
-- Never translate, summarise, paraphrase, normalise, convert units, round, complete or "fix" anything. Keep the document's original language.
+- In "text", never translate, summarise, paraphrase, normalise, convert units, round, complete or "fix" anything. Keep the document's original language. (The English version goes into "en", see below.)
 - Never add anything that is not printed in the document: no headings of your own, no explanations, no assumed values.
 - Include all content: every section, table row and column, footnote, method reference, standard number, date, batch/lot number, validity statement and remark. Do not skip repeated or boilerplate text.
 - Keep the reading order of the source.
@@ -97,6 +100,15 @@ Split text into runs so that each removable fragment is its own run with kind "r
 - commercial_terms: prices, discounts, currencies tied to prices, payment terms, delivery terms and Incoterms, minimum order quantities, offer validity.
 Keep everything else, in particular: country of origin, plant approval/veterinary numbers, batch/lot numbers, production and expiry dates, analytical values, methods, standards, regulations, allergen and GMO statements, storage, shelf life and packaging information.
 When unsure whether something identifies the supplier, mark it as redact – a person reviews every mark and can restore it.
+
+# English version (fields "en" and "en_how")
+Nutri Partners prints the document in English only. For every run (including redact runs, which a reviewer may restore) say what is printed in English:
+- "same": the run is already in English or has no words (numbers, units, codes, symbols, dates). Set "en" to null.
+- "english_part": the run contains the same content in several languages (e.g. "产品名称：\nProductName："). "en" is only the English part, copied character for character from "text" (full-width punctuation such as "：" or "（" may be written in its ASCII form).
+- "corrected": the English wording contains an obvious spelling mistake (e.g. "CERTIFICATE OF ANALAYSIS"). "en" is the English text with only the misspelled words corrected. Never change numbers, units, symbols, codes, dates, names of methods or standards, wording or grammar.
+- "translated": the run has no English version. "en" is a faithful, literal English translation in standard technical terminology. Copy every number, unit, symbol (<, >, ≤, ≥, ±, %), range, date, batch number, code, method and standard reference exactly as written: do not convert units or date formats and do not round. Translate nothing that is a code or a proper name.
+- "duplicate": the run only repeats, in another language, content that the document also gives in English in a neighbouring run, line, cell or block (e.g. a Chinese line above its English equivalent). Set "en" to "" – the English neighbour is printed instead. Use it only when every number and fact of the run is in that English neighbour.
+For illegible runs, "en" covers only the readable part. Never add, explain or complete anything in "en".
 
 # Structure
 Use blocks: heading (level 1–3), paragraph, key_value (label → value pairs, e.g. parameter tables with two columns), table (header rows and body rows; every cell is a list of runs; keep empty cells as empty lists), list (one entry per item, without the bullet character), note (footnotes, small print), figure (charts, photos, drawings: put only a printed caption in "runs" if there is one, never describe the image).
