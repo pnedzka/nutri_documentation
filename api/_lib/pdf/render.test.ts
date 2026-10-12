@@ -1,7 +1,8 @@
 import { writeFileSync } from 'node:fs';
 import { extractText } from 'unpdf';
 import { describe, expect, it } from 'vitest';
-import { missingGlyphs, renderPdf } from './render.js';
+import { lostCharacters, missingGlyphs, renderPdf } from './render.js';
+import type { Printable } from '../../../shared/printable.js';
 import { toPrintable } from '../../../shared/printable.js';
 import type { Block, Extraction, Run } from '../../../shared/schema.js';
 
@@ -63,6 +64,33 @@ describe('renderPdf', () => {
     expect(compact).toContain('分析报告');
     expect(compact).toContain('白色粉末');
     expect(text).toContain('CERTIFICATE');
+  }, 30_000);
+});
+
+describe('lostCharacters', () => {
+  const paragraph = (...texts: string[]): Printable => ({ blocks: [{ type: 'paragraph', runs: texts.map((text) => ({ text, illegible: false })) }], illegible: [] });
+
+  it('keeps Chinese text split across runs', async () => {
+    // A redaction between "（" and "）" left two runs that both start and end in the fallback font; react-pdf used to
+    // drop the start of the second one.
+    const printable = paragraph('企业标准（', '）\nEnterprise Standard', ' 企业', '标准 abc');
+    const pdf = await renderPdf({ printable, language: 'en', reference: 'ab12cd34' });
+    expect(await lostCharacters(pdf, printable)).toEqual([]);
+    const { text } = await extractText(new Uint8Array(pdf), { mergePages: true });
+    expect(text.replace(/\s+/g, '')).toContain('企业标准（）EnterpriseStandard企业标准abc');
+  }, 30_000);
+
+  it('reports characters the PDF does not contain', async () => {
+    const pdf = await renderPdf({ printable: paragraph('Wilgotność ≤ 4,0 %'), language: 'pl', reference: 'ab12cd34' });
+    expect(await lostCharacters(pdf, paragraph('Wilgotność ≤ 4,0 %'))).toEqual([]);
+    expect(await lostCharacters(pdf, paragraph('Wilgotność ≤ 4,0 % 漢'))).toEqual(['漢']);
+    expect(await lostCharacters(pdf, paragraph('Wilgotność ≤ 4,00 %'))).toEqual(['0']);
+  }, 30_000);
+
+  it('accepts the Polish sample with its illegible spot', async () => {
+    const printable = toPrintable(SAMPLE, { productName: 'NP SMP 34', productCode: null });
+    const pdf = await renderPdf({ printable, language: 'pl', reference: 'ab12cd34' });
+    expect(await lostCharacters(pdf, printable)).toEqual([]);
   }, 30_000);
 });
 
