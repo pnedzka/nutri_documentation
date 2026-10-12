@@ -43,6 +43,7 @@ export function toPrintable(extraction: Extraction, replacements: Replacements):
   const cell = (runs: Run[] | null | undefined, page: number): PrintCell => {
     const out: PrintCell = [];
     let lastReplaced: string | null = null;
+    let removedBefore = false;
     for (const run of runs ?? []) {
       if (run.kind === 'redact') {
         const replacement =
@@ -50,10 +51,18 @@ export function toPrintable(extraction: Extraction, replacements: Replacements):
         // A trade name split into several runs is replaced once.
         if (replacement && lastReplaced !== run.category) out.push({ text: withSpacing(run.text, replacement), illegible: false });
         lastReplaced = replacement ? run.category : null;
+        removedBefore = !replacement;
         continue;
       }
       lastReplaced = null;
-      const text = halfWidth(printedText(run));
+      let text = halfWidth(printedText(run));
+      // Brackets that only enclosed a removed fragment ("Enterprise standard (Q/ACME-01)") go with it.
+      const prev = out.at(-1);
+      if (removedBefore && prev && !prev.illegible && /[([]\s*$/.test(prev.text) && /^\s*[)\]]/.test(text)) {
+        out[out.length - 1] = { ...prev, text: prev.text.replace(/\s*[([]\s*$/, '') };
+        text = text.replace(/^\s*[)\]]/, '');
+      }
+      removedBefore = false;
       if (run.kind === 'illegible') {
         illegible.push({ page, text, reason: run.reason });
         out.push({ text, illegible: true });

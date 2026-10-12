@@ -48,6 +48,9 @@ export function tokens(s: string): string[] {
 
 export const isNumeric = (t: string) => /\p{N}/u.test(t);
 
+// Numbers as written (decimal and thousands separators kept), independent of the words around them: "25kg" → "25".
+const NUMBER_RE = /\p{N}+(?:[.,]\p{N}+)*/gu;
+
 /** Tokens worth checking for omissions: numbers, symbols and words of 2+ characters. */
 const isSignificant = (t: string) => isNumeric(t) || /[<>≤≥±%°=]/.test(t) || t.length >= 2;
 
@@ -221,6 +224,13 @@ function outputTokens(extraction: Extraction): Set<string> {
   return out;
 }
 
+/** Every number of the transcription, read without whitespace (see NUMBER_RE). */
+function outputNumbers(extraction: Extraction): Set<string> {
+  const out = new Set<string>();
+  for (const { run } of eachRun(extraction)) for (const n of compact(run.text).match(NUMBER_RE) ?? []) out.add(n);
+  return out;
+}
+
 /**
  * Source lines whose content is missing from the transcription: a missing number, or at least half of the words.
  * Consecutive flagged lines on a page are reported together.
@@ -228,6 +238,7 @@ function outputTokens(extraction: Extraction): Set<string> {
 export function findOmissions(extraction: Extraction, sourcePages: string[], label = 'dokumentu źródłowego'): Warning[] {
   const c = collector();
   const present = outputTokens(extraction);
+  const presentNumbers = outputNumbers(extraction);
   sourcePages.forEach((pageText, p) => {
     let group: string[] = [];
     const flush = () => {
@@ -245,7 +256,10 @@ export function findOmissions(extraction: Extraction, sourcePages: string[], lab
       }
       const significant = tokens(line).filter(isSignificant);
       if (!significant.length) continue;
-      const missing = significant.filter((t) => !present.has(t));
+      // Text layers often split values with spaces ("25 kgs", "≤0. 1") or the transcription glues them to a unit
+      // ("25kgs"); a number counts as present when it is found either as a token or with the spaces removed.
+      const numbersFound = !(compact(line).match(NUMBER_RE) ?? []).some((n) => !presentNumbers.has(n));
+      const missing = significant.filter((t) => !present.has(t) && !(numbersFound && isNumeric(t)));
       const missesNumber = missing.some(isNumeric);
       if (missesNumber || missing.length / significant.length >= 0.5) group.push(line.trim());
       else flush();
@@ -345,8 +359,6 @@ export function findLeaks(extraction: Extraction): Warning[] {
   return finish(c);
 }
 
-// Numbers as written (decimal and thousands separators kept), independent of the words around them: "25kg" → "25".
-const NUMBER_RE = /\p{N}+(?:[.,]\p{N}+)*/gu;
 const SYMBOL_RE = /[<>≤≥±%=]/gu;
 // Letters of other alphabets or with diacritics (µ is a unit prefix, not a word).
 const NON_ENGLISH_LETTER = /(?![µμ])[^\P{L}a-zA-Z]/u;
@@ -361,12 +373,15 @@ const difference = (a: Set<string>, b: Set<string>) => [...a].filter((x) => !b.h
  */
 export function englishWarnings(extraction: Extraction): Warning[] {
   const c = collector();
+  const duplicates: string[] = [];
   for (const { block, run, ref } of eachRun(extraction)) {
     // Removed runs are not printed; documents processed before the English version have no `en_how`.
     if (run.kind === 'redact' || !run.en_how) continue;
     const en = run.en ?? '';
     const where = { page: block.page, ref, excerpt: run.text };
-    switch (run.en_how) {
+    // Only the form of characters changed (e.g. full-width "（" → "("): nothing to review but the alphabet.
+    const unchanged = run.en_how !== 'duplicate' && compact(en) === compact(run.text);
+    switch (unchanged ? 'same' : run.en_how) {
       case 'english_part':
         if (en.trim() && !compact(run.text).includes(compact(en))) {
           add(c, 'english_check', `Tekst angielski „${shorten(en, 80)}” nie występuje w oryginale „${shorten(run.text, 80)}”.`, where);
@@ -382,20 +397,24 @@ export function englishWarnings(extraction: Extraction): Warning[] {
         // Every value of the skipped run must be printed in the English text of the same block.
         const neighbours = valueSet(runLists(block).flatMap((l) => l.runs.filter((r) => r.kind !== 'redact').map(printedText)).join(' '));
         const lost = difference(valueSet(run.text), neighbours);
-        add(
-          c,
-          'english_check',
-          `Pominięte jako powtórzenie tekstu angielskiego obok: „${shorten(run.text, 80)}”.${lost.length ? ` Wartości ${lost.slice(0, 6).join(', ')} nie występują w tekście angielskim tego bloku.` : ''}`,
-          where,
-        );
+        if (lost.length) {
+          add(
+            c,
+            'english_check',
+            `Pominięte jako powtórzenie tekstu angielskiego obok: „${shorten(run.text, 80)}”. Wartości ${lost.slice(0, 6).join(', ')} nie występują w tekście angielskim tego bloku.`,
+            where,
+          );
+        } else if (run.text.trim()) {
+          duplicates.push(run.text);
+        }
         continue;
       }
     }
-    if (run.en_how !== 'same' && run.text.trim() && !en.trim()) {
+    if (!unchanged && run.en_how !== 'same' && run.text.trim() && !en.trim()) {
       add(c, 'english_check', `Brak wersji angielskiej dla „${shorten(run.text, 80)}”.`, where);
       continue;
     }
-    if (run.en_how !== 'same') {
+    if (!unchanged && run.en_how !== 'same') {
       const original = valueSet(run.text);
       const english = valueSet(en);
       const added = difference(english, original);
@@ -409,6 +428,16 @@ export function englishWarnings(extraction: Extraction): Warning[] {
     if (NON_ENGLISH_LETTER.test(printed)) {
       add(c, 'english_check', `Tekst do druku zawiera znaki spoza alfabetu angielskiego: „${shorten(printed, 80)}”.`, where);
     }
+  }
+  // Skipped repetitions whose values are all in the English text are reported together: one check of the
+  // struck-through fragments on the preview instead of a warning per line of a bilingual document.
+  if (duplicates.length) {
+    const examples = duplicates.slice(0, 3).map((d) => `„${shorten(d, 30)}”`).join(', ');
+    add(
+      c,
+      'english_check',
+      `Pominięto ${duplicates.length} ${duplicates.length === 1 ? 'fragment powtarzający' : 'fragmentów powtarzających'} tekst angielski obok (np. ${examples}). Na podglądzie są przekreślone na szaro: sprawdź, czy żaden nie zawiera informacji, której brak po angielsku.`,
+    );
   }
   return finish(c);
 }

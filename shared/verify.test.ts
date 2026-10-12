@@ -83,6 +83,15 @@ describe('findOmissions', () => {
     expect(w[0].kind).toBe('possibly_omitted');
     expect(w[0].excerpt).toContain('Salmonella');
   });
+
+  it('accepts values the text layer splits with spaces', () => {
+    const e = doc([
+      block({ type: 'key_value', rows: [{ key: [t('Package:')], value: [t('25kgs/Carton')] }, { key: [t('Mercury(as Hg) ppm')], value: [t('≤0.1 GB 5009.71 <0.1')] }] }),
+    ]);
+    expect(findOmissions(e, ['Package: 25 kgs/Carton\nMercury(as Hg) ppm ≤0. 1 GB 5009.71 <0.1'])).toEqual([]);
+    // A value that really is missing is still reported.
+    expect(findOmissions(e, ['Package: 25 kgs/Carton\nMercury(as Hg) ppm ≤0. 2 GB 5009.71 <0.1'])).toHaveLength(1);
+  });
 });
 
 describe('compareWithSecondPass', () => {
