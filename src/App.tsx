@@ -10,6 +10,7 @@ import { AdminDocumentsPage } from './pages/AdminDocumentsPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { AccountPage } from './pages/AccountPage';
 import { SetupPage } from './pages/SetupPage';
+import { SetPasswordPage } from './pages/SetPasswordPage';
 
 function Spinner() {
   return (
@@ -26,13 +27,14 @@ function AdminOnly({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
-  const { status, init } = useAuth();
+  const { status, init, passwordSetup } = useAuth();
   useEffect(() => init(), [init]);
 
   let content: ReactNode;
   if (status === 'loading') content = <Spinner />;
   else if (status === 'unconfigured') content = <SetupPage />;
   else if (status !== 'signedIn') content = <LoginPage />;
+  else if (passwordSetup) content = <SetPasswordPage />;
   else
     content = (
       <Routes>

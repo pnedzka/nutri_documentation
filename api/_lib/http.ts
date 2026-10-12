@@ -39,3 +39,8 @@ export async function readJson<T>(request: Request): Promise<T> {
     throw new HttpError(400, 'Nieprawidłowe dane żądania.');
   }
 }
+
+/** Address of the app that links in e-mails lead to: `APP_URL`, or the address the request came to. */
+export function appUrl(request: Request): string {
+  return (process.env.APP_URL?.trim() || new URL(request.url).origin).replace(/\/+$/, '');
+}
