@@ -67,6 +67,10 @@ Kod: `shared/verify.ts` (sprawdzanie), `shared/printable.ts` (co trafia na papie
 
 Limit czasu funkcji to 300 s (`vercel.json`). Długie PDF-y są dzielone na części po 3 strony, czytane równolegle.
 
+Funkcje API działają we Frankfurcie (`"regions": ["fra1"]` w `vercel.json`), obok bazy Supabase w `eu-central-1`. Przy projekcie Supabase w innym regionie zmień tę wartość.
+
+**Ochrona wdrożeń.** Aplikacja ma własne logowanie, więc w Vercelu → Settings → Deployment Protection ustaw Vercel Authentication na „Only Preview Deployments” albo podepnij własną domenę. Inaczej pracownicy bez konta w zespole Vercel zobaczą ekran logowania Vercela zamiast aplikacji.
+
 ## Papier firmowy
 
 Dane firmy w stopce PDF są w pliku `shared/letterhead.ts`: pełna nazwa, adres, NIP, KRS, telefon, e-mail, www. Puste pola są pomijane, więc wystarczy uzupełnić je i wdrożyć ponownie.
