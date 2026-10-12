@@ -103,6 +103,9 @@ Konfiguracja:
 W zakładce **Użytkownicy**:
 - **Status** konta: „Zaproszone” (link jeszcze nieużyty), „Aktywne” albo „Bez logowania”.
 - **„Wyślij link”** wysyła ponownie zaproszenie albo, dla aktywnego konta, link do zmiany hasła.
+- **„Usuń”** usuwa konto po potwierdzeniu. Ograniczenia:
+  - nie można usunąć własnego konta,
+  - nie można usunąć konta, które ma dokumenty albo występuje w historii zmian dokumentów, bo dokumenty są wiążące i ich historia musi zostać zachowana. Takiemu kontu można np. ustawić nowe hasło i go nie używać.
 - Bez wysyłki e-maili można odznaczyć „Wyślij zaproszenie e-mailem” i przekazać hasło startowe samodzielnie.
 
 **„Nie pamiętasz hasła?”** na ekranie logowania wysyła link do ustawienia hasła. Działa także dla zaproszonych osób, którym wygasł link z zaproszenia. Odpowiedź aplikacji jest zawsze taka sama, bez względu na to, czy konto istnieje. Na jedno konto wysyłany jest najwyżej jeden e-mail na minutę.
