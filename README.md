@@ -82,9 +82,14 @@ Kod: `shared/verify.ts` (sprawdzanie), `shared/printable.ts` (co trafia na papie
 
 ## Zaproszenia i reset hasła e-mailem
 
-E-maile wysyła sama aplikacja przez API [Resend](https://resend.com), jako `Nutri APEX <no-reply@nutripartners.co>`. W Supabase nie trzeba konfigurować SMTP ani szablonów:
-- link tworzy Supabase Auth (`generateLink`, bez wysyłki),
-- prowadzi prosto do aplikacji, która wymienia jednorazowy token na sesję.
+E-maile wysyła sama aplikacja przez API [Resend](https://resend.com), jako `Nutri APEX <no-reply@nutripartners.co>`. Nutri APEX to asystent AI Nutri Partners, a treść maila wyjaśnia, że zaproszenie dotyczy systemu „Neutralizacja dokumentów”. Treść jest w `api/_lib/mail.ts`.
+
+Link w mailu to jednorazowy token aplikacji:
+- zaproszenie jest ważne **24 godziny**, reset hasła **1 godzinę** (`api/_lib/accountLinks.ts`, tabela `account_links`),
+- każdy nowy link unieważnia poprzedni,
+- po kliknięciu aplikacja wymienia token na sesję Supabase.
+
+Ważność nie zależy od ustawień Supabase, a w Supabase nie trzeba konfigurować SMTP ani szablonów.
 
 Konfiguracja:
 1. **Resend:** domena `nutripartners.co` zweryfikowana (region EU) i klucz API z uprawnieniem „Sending access”.
@@ -94,7 +99,6 @@ Konfiguracja:
    - `APP_URL`: adres aplikacji w linkach.
 
    Po zmianie zmiennych wykonaj ponowne wdrożenie.
-3. Opcjonalnie: **Supabase → Authentication → Sign In / Providers → Email → „Email OTP Expiration”** określa ważność linków. Domyślnie to 1 godzina, maksymalnie 86400 s.
 
 W zakładce **Użytkownicy**:
 - **Status** konta: „Zaproszone” (link jeszcze nieużyty), „Aktywne” albo „Bez logowania”.

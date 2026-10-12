@@ -11,6 +11,7 @@ describe('parseAuthLink', () => {
     expect(parseAuthLink('', '?token_hash=abc123&type=invite')).toEqual({ kind: 'invite', tokenHash: 'abc123' });
     expect(parseAuthLink('', '?token_hash=abc123&type=recovery')).toEqual({ kind: 'recovery', tokenHash: 'abc123' });
     expect(parseAuthLink('', '?token_hash=abc123&type=signup')).toBeNull();
+    expect(parseAuthLink('', '?link=Zm9vYmFyYmF6cXV4cXV1eA&type=invite')).toEqual({ kind: 'invite', linkToken: 'Zm9vYmFyYmF6cXV4cXV1eA' });
   });
 
   it('ignores ordinary URLs and other sign-in links', () => {

@@ -4,7 +4,8 @@
 // it cannot be used to find out who has an account. One e-mail per account per minute at most.
 
 import { HttpError, appUrl, handle, json, readJson } from '../_lib/http.js';
-import { createAccountLink, sendAccountMail } from '../_lib/mail.js';
+import { issueAccountLink } from '../_lib/accountLinks.js';
+import { sendAccountMail } from '../_lib/mail.js';
 import { db } from '../_lib/supabase.js';
 
 const MIN_INTERVAL_MS = 60_000;
@@ -25,13 +26,9 @@ export function POST(request: Request): Promise<Response> {
     const last = Date.parse(String(user.app_metadata?.last_link_sent_at ?? ''));
     if (Number.isFinite(last) && Date.now() - last < MIN_INTERVAL_MS) return json({ ok: true });
 
-    const link = await createAccountLink('recovery', email, appUrl(request));
-    if (link.error || !link.url) {
-      console.error('[recover] link', link.error);
-      return json({ ok: true });
-    }
+    const url = await issueAccountLink('recovery', user.id, appUrl(request));
     await db().auth.admin.updateUserById(user.id, { app_metadata: { ...user.app_metadata, last_link_sent_at: new Date().toISOString() } });
-    await sendAccountMail('recovery', email, link.url);
+    await sendAccountMail({ kind: 'recovery', email, url, appUrl: appUrl(request) });
     return json({ ok: true });
   });
 }

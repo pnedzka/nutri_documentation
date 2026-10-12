@@ -52,6 +52,20 @@ create table if not exists public.document_events (
 
 create index if not exists document_events_document_idx on public.document_events (document_id, created_at);
 
+-- One-time links from account e-mails (invitation: 24 h, password reset: 1 h). Only the SHA-256 of the token is
+-- stored. Used by the API with the service role only: row level security is on and there are no policies.
+create table if not exists public.account_links (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  kind text not null check (kind in ('invite', 'recovery')),
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists account_links_user_idx on public.account_links (user_id);
+
 -- Helper for the policies below. It lives in a schema the Data API does not expose, so it cannot be called
 -- through /rest/v1/rpc (Supabase security advisor 0028/0029).
 create schema if not exists private;
@@ -73,6 +87,7 @@ grant execute on function private.is_admin() to authenticated;
 alter table public.profiles enable row level security;
 alter table public.documents enable row level security;
 alter table public.document_events enable row level security;
+alter table public.account_links enable row level security;
 
 drop policy if exists profiles_read on public.profiles;
 create policy profiles_read on public.profiles for select to authenticated
