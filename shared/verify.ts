@@ -379,9 +379,13 @@ export function englishWarnings(extraction: Extraction): Warning[] {
     if (run.kind === 'redact' || !run.en_how) continue;
     const en = run.en ?? '';
     const where = { page: block.page, ref, excerpt: run.text };
-    // Only the form of characters changed (e.g. full-width "（" → "("): nothing to review but the alphabet.
-    const unchanged = run.en_how !== 'duplicate' && compact(en) === compact(run.text);
-    switch (unchanged ? 'same' : run.en_how) {
+    // Only the form of characters or the spacing changed (full-width "（" → "(", "ProductName" → "Product Name") and
+    // every value is the same: nothing to review but the alphabet. A space inside a number is never "only spacing".
+    const sameValues = (a: string, b: string) => difference(valueSet(a), valueSet(b)).length === 0 && difference(valueSet(b), valueSet(a)).length === 0;
+    const unchanged = run.en_how !== 'duplicate' && compact(en) === compact(run.text) && sameValues(en, run.text);
+    // A spacing correction of the English part of a bilingual text is checked like a copy of that part.
+    const spacingFix = run.en_how === 'corrected' && !!en.trim() && compact(run.text).includes(compact(en));
+    switch (unchanged ? 'same' : spacingFix ? 'english_part' : run.en_how) {
       case 'english_part':
         if (en.trim() && !compact(run.text).includes(compact(en))) {
           add(c, 'english_check', `Tekst angielski „${shorten(en, 80)}” nie występuje w oryginale „${shorten(run.text, 80)}”.`, where);

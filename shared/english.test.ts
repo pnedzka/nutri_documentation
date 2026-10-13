@@ -66,6 +66,15 @@ describe('englishWarnings', () => {
     expect(lost[0][1]).toContain('Wartości 4.5 nie występują');
   });
 
+  it('accepts spacing corrections without a warning, but never a space change inside a number', () => {
+    expect(kinds(doc([en('ProductName：Magnesium Bisglycinate', 'corrected', 'Product Name: Magnesium Bisglycinate')]))).toEqual([]);
+    expect(kinds(doc([en('产品名称：\nProductName：', 'corrected', 'Product Name:')]))).toEqual([]);
+    expect(kinds(doc([en('Expiry date:2028.03.29', 'corrected', 'Expiry date: 2028.03.29')]))).toEqual([]);
+    const w = kinds(doc([en('Lead 1 0 ppm', 'corrected', 'Lead 10 ppm')]));
+    expect(w.map((x) => x[0])).toEqual(['english_check']);
+    expect(w[0][1]).toContain('brak: 1, 0; dodane: 10');
+  });
+
   it('does not ask about a change of character form only', () => {
     expect(kinds(doc([en('（', 'translated', '(')], [en('Product name：', 'english_part', 'Product name:')]))).toEqual([]);
   });
