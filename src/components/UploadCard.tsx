@@ -67,7 +67,7 @@ export function UploadCard() {
         >
           <Upload size={22} className="text-gray-400" />
           {file ? (
-            <p className="text-sm font-medium text-gray-900 break-all">{file.name}</p>
+            <p className="text-sm font-medium text-gray-900 break-words">{file.name}</p>
           ) : (
             <p className="text-sm text-gray-600">
               Przeciągnij plik od dostawcy albo <span className="text-[#CC1F1F] font-medium">wybierz z dysku</span>

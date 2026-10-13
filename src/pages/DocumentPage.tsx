@@ -156,7 +156,7 @@ export function DocumentPage() {
       <BackLink />
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900 break-all">{doc.original_filename}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 break-words">{doc.original_filename}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
             <StatusBadge status={doc.status} />
             <span>wgrano {formatDateTime(doc.created_at)}</span>
@@ -231,7 +231,13 @@ export function DocumentPage() {
                 <FileText size={16} className="text-[#CC1F1F]" />
                 <h2 className="text-sm font-semibold text-gray-900">Oryginał od dostawcy</h2>
                 {data.originalUrl && (
-                  <a href={data.originalUrl} target="_blank" rel="noreferrer" className="ml-auto text-xs text-gray-500 underline hover:text-gray-800">
+                  <a
+                    href={data.originalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    // Phones get a full-width button for PDFs instead (see OriginalPreview).
+                    className={`ml-auto text-xs text-gray-500 underline hover:text-gray-800 ${doc.mime_type === 'application/pdf' ? 'hidden md:inline' : ''}`}
+                  >
                     otwórz w nowej karcie
                   </a>
                 )}
@@ -374,7 +380,7 @@ function ActionBar(props: { doc: DocumentRecord; open: number; busy: boolean; ou
       <CardBody className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-sm text-gray-700">
           {open
-            ? `Przed wygenerowaniem PDF rozpatrz wszystkie ostrzeżenia (pozostało: ${open}). Porównaj treść z oryginałem po lewej.`
+            ? `Przed wygenerowaniem PDF rozpatrz wszystkie ostrzeżenia (pozostało: ${open}). Porównaj treść z oryginałem.`
             : 'Wszystkie ostrzeżenia rozpatrzone. Sprawdź treść i wygeneruj dokument na papierze firmowym.'}
         </p>
         <Button disabled={busy || open > 0} isLoading={busy} onClick={props.onFinalize} className="whitespace-nowrap">
@@ -394,7 +400,25 @@ function OriginalPreview({ url, mimeType }: { url: string | null; mimeType: stri
       </div>
     );
   }
-  if (mimeType === 'application/pdf') return <iframe src={url} title="Oryginał dokumentu" className="w-full h-[78vh] bg-gray-50" />;
+  if (mimeType === 'application/pdf') {
+    return (
+      <>
+        {/* Phones show an embedded PDF as its first page only, without scrolling: open it in the browser's viewer. */}
+        <div className="md:hidden px-4 py-6">
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 active:bg-gray-50"
+          >
+            <FileText size={16} className="text-[#CC1F1F]" />
+            Otwórz oryginał (PDF)
+          </a>
+        </div>
+        <iframe src={url} title="Oryginał dokumentu" className="hidden md:block w-full h-[78vh] bg-gray-50" />
+      </>
+    );
+  }
   return (
     <div className="px-6 py-10 text-sm text-gray-600">
       Podgląd dokumentów Word nie jest dostępny w przeglądarce.{' '}

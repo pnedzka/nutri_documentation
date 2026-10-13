@@ -102,6 +102,51 @@ export function AdminUsersPage() {
     void update(u.id, { password }, `Nowe hasło dla ${u.email}: ${password}`);
   };
 
+  const statusPill = (u: UserRow) => (
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS[u.status].className}`}
+      title={u.last_sign_in_at ? `Ostatnie logowanie: ${formatDateTime(u.last_sign_in_at)}` : undefined}
+    >
+      {STATUS[u.status].label}
+    </span>
+  );
+
+  const roleSelect = (u: UserRow) => (
+    <select
+      value={u.role}
+      disabled={u.id === me?.id}
+      onChange={(e) => void update(u.id, { role: e.target.value }, 'Rola zmieniona')}
+      className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm disabled:bg-gray-50"
+      aria-label={`Rola ${u.email}`}
+    >
+      <option value="user">użytkownik</option>
+      <option value="admin">administrator</option>
+    </select>
+  );
+
+  const actions = (u: UserRow) => (
+    <>
+      <Button variant="ghost" size="sm" onClick={() => void sendLink(u)} title={u.status === 'invited' ? 'Wyślij zaproszenie ponownie' : 'Wyślij link do zmiany hasła'}>
+        <Mail size={14} className="mr-1" />
+        Wyślij link
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => resetPassword(u)}>Nowe hasło</Button>
+      {u.id !== me?.id && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-red-600 hover:text-red-700 disabled:text-gray-300"
+          disabled={u.documents > 0}
+          title={u.documents > 0 ? 'Konta z dokumentami nie można usunąć: dokumenty i ich historia muszą zostać zachowane.' : 'Usuń konto'}
+          onClick={() => void remove(u)}
+        >
+          <Trash2 size={14} className="mr-1" />
+          Usuń
+        </Button>
+      )}
+    </>
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -158,7 +203,25 @@ export function AdminUsersPage() {
             <Users size={16} className="text-[#CC1F1F]" />
             <h2 className="text-sm font-semibold text-gray-900">Konta {users ? `(${users.length})` : ''}</h2>
           </CardHeader>
-          <div className="overflow-x-auto">
+          {/* Phones: one card per account. */}
+          <ul className="md:hidden divide-y divide-gray-100">
+            {(users ?? []).map((u) => (
+              <li key={u.id} className="px-4 py-4 space-y-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 break-words">{u.full_name || u.email}</p>
+                  {u.full_name && <p className="text-xs text-gray-500 break-all">{u.email}</p>}
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                    {statusPill(u)}
+                    <span>Dokumenty: {u.documents}</span>
+                    <span>Utworzono {formatDateTime(u.created_at)}</span>
+                  </div>
+                </div>
+                {roleSelect(u)}
+                <div className="flex flex-wrap gap-1 -ml-2">{actions(u)}</div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100">
@@ -175,48 +238,13 @@ export function AdminUsersPage() {
                     <td className="px-6 py-3">
                       <p className="font-medium text-gray-900">{u.full_name || u.email}</p>
                       {u.full_name && <p className="text-xs text-gray-500">{u.email}</p>}
-                      <span
-                        className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS[u.status].className}`}
-                        title={u.last_sign_in_at ? `Ostatnie logowanie: ${formatDateTime(u.last_sign_in_at)}` : undefined}
-                      >
-                        {STATUS[u.status].label}
-                      </span>
+                      <div className="mt-1">{statusPill(u)}</div>
                     </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={u.role}
-                        disabled={u.id === me?.id}
-                        onChange={(e) => void update(u.id, { role: e.target.value }, 'Rola zmieniona')}
-                        className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm disabled:bg-gray-50"
-                        aria-label={`Rola ${u.email}`}
-                      >
-                        <option value="user">użytkownik</option>
-                        <option value="admin">administrator</option>
-                      </select>
-                    </td>
+                    <td className="px-4 py-3">{roleSelect(u)}</td>
                     <td className="px-4 py-3 text-gray-600">{u.documents}</td>
                     <td className="px-4 py-3 text-gray-600">{formatDateTime(u.created_at)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-col items-end gap-1 whitespace-nowrap">
-                        <Button variant="ghost" size="sm" onClick={() => void sendLink(u)} title={u.status === 'invited' ? 'Wyślij zaproszenie ponownie' : 'Wyślij link do zmiany hasła'}>
-                          <Mail size={14} className="mr-1" />
-                          Wyślij link
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => resetPassword(u)}>Nowe hasło</Button>
-                        {u.id !== me?.id && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700 disabled:text-gray-300"
-                            disabled={u.documents > 0}
-                            title={u.documents > 0 ? 'Konta z dokumentami nie można usunąć: dokumenty i ich historia muszą zostać zachowane.' : 'Usuń konto'}
-                            onClick={() => void remove(u)}
-                          >
-                            <Trash2 size={14} className="mr-1" />
-                            Usuń
-                          </Button>
-                        )}
-                      </div>
+                      <div className="flex flex-col items-end gap-1 whitespace-nowrap">{actions(u)}</div>
                     </td>
                   </tr>
                 ))}
