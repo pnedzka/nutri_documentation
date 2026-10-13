@@ -2,19 +2,21 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { FileText, LogOut, Shield, User as UserIcon, Users } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 
-function Tab({ to, icon, children }: { to: string; icon: React.ReactNode; children: React.ReactNode }) {
+/** On phones the tabs share the width equally and use the short label. */
+function Tab({ to, icon, label, short }: { to: string; icon: React.ReactNode; label: string; short: string }) {
   return (
     <NavLink
       to={to}
       end={to === '/'}
       className={({ isActive }) =>
-        `inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+        `flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
           isActive ? 'bg-[#CC1F1F] text-white' : 'text-gray-600 hover:bg-gray-100'
         }`
       }
     >
       {icon}
-      {children}
+      <span className="sm:hidden">{short}</span>
+      <span className="hidden sm:inline">{label}</span>
     </NavLink>
   );
 }
@@ -34,25 +36,27 @@ export function Layout() {
           <div className="flex items-center gap-2">
             <NavLink
               to="/konto"
-              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100"
               title="Moje konto"
+              aria-label="Moje konto"
             >
-              {isAdmin ? <Shield size={14} className="text-[#CC1F1F]" /> : <UserIcon size={14} />}
-              <span className="max-w-[200px] truncate">{profile?.full_name || profile?.email}</span>
+              {isAdmin ? <Shield size={16} className="text-[#CC1F1F]" /> : <UserIcon size={16} />}
+              <span className="hidden sm:inline max-w-[200px] truncate">{profile?.full_name || profile?.email}</span>
             </NavLink>
             <button
               onClick={() => void signOut()}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100"
+              aria-label="Wyloguj"
             >
-              <LogOut size={14} />
+              <LogOut size={16} />
               <span className="hidden sm:inline">Wyloguj</span>
             </button>
           </div>
         </div>
-        <nav className="max-w-[1400px] mx-auto px-4 sm:px-6 pb-3 flex gap-2 overflow-x-auto" aria-label="Nawigacja">
-          <Tab to="/" icon={<FileText size={16} />}>Moje dokumenty</Tab>
-          {isAdmin && <Tab to="/admin/dokumenty" icon={<Shield size={16} />}>Wszystkie dokumenty</Tab>}
-          {isAdmin && <Tab to="/admin/uzytkownicy" icon={<Users size={16} />}>Użytkownicy</Tab>}
+        <nav className="max-w-[1400px] mx-auto px-4 sm:px-6 pb-3 flex gap-1 sm:gap-2" aria-label="Nawigacja">
+          <Tab to="/" icon={<FileText size={16} />} label="Moje dokumenty" short="Moje" />
+          {isAdmin && <Tab to="/admin/dokumenty" icon={<Shield size={16} />} label="Wszystkie dokumenty" short="Wszystkie" />}
+          {isAdmin && <Tab to="/admin/uzytkownicy" icon={<Users size={16} />} label="Użytkownicy" short="Użytkownicy" />}
         </nav>
       </header>
       <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">

@@ -14,3 +14,13 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+/* iOS Safari zooms the page in when a form field with text smaller than 16px gets focus (and the page then stays
+   zoomed, wider than the screen). Unlayered, so it wins over Tailwind's text-sm on phones. */
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
