@@ -98,7 +98,7 @@ function finish(c: Collector): Warning[] {
     c.list.push({
       id: '',
       kind,
-      message: `…oraz ${extra} kolejnych ostrzeżeń tego typu. Porównaj cały dokument z oryginałem.`,
+      message: `…and ${extra} more ${extra === 1 ? 'warning' : 'warnings'} of this type. Compare the whole document with the original.`,
       page: null,
       ref: null,
       excerpt: null,
@@ -206,9 +206,9 @@ export function verifyAgainstSource(extraction: Extraction, sourcePages: string[
     const { ok, missing } = locate(run.text, index, block.page);
     if (ok) continue;
     const detail = missing.length
-      ? `brak: ${missing.slice(0, 6).join(', ')}`
-      : 'słowa występują w źródle, ale w innym miejscu lub innej kolejności';
-    add(c, 'unverified', `Fragment „${shorten(run.text, 80)}” nie występuje w dokumencie źródłowym (${detail}).`, {
+      ? `missing: ${missing.slice(0, 6).join(', ')}`
+      : 'the words are in the source, but in another place or order';
+    add(c, 'unverified', `Fragment "${shorten(run.text, 80)}" does not appear in the source document (${detail}).`, {
       page: block.page,
       ref,
       excerpt: run.text,
@@ -235,7 +235,7 @@ function outputNumbers(extraction: Extraction): Set<string> {
  * Source lines whose content is missing from the transcription: a missing number, or at least half of the words.
  * Consecutive flagged lines on a page are reported together.
  */
-export function findOmissions(extraction: Extraction, sourcePages: string[], label = 'dokumentu źródłowego'): Warning[] {
+export function findOmissions(extraction: Extraction, sourcePages: string[], label = 'the source document'): Warning[] {
   const c = collector();
   const present = outputTokens(extraction);
   const presentNumbers = outputNumbers(extraction);
@@ -243,7 +243,7 @@ export function findOmissions(extraction: Extraction, sourcePages: string[], lab
     let group: string[] = [];
     const flush = () => {
       if (!group.length) return;
-      add(c, 'possibly_omitted', `Treść z ${label} (str. ${p + 1}) nie została znaleziona w wyniku.`, {
+      add(c, 'possibly_omitted', `Content from ${label} (page ${p + 1}) was not found in the transcription.`, {
         page: p + 1,
         excerpt: shorten(group.join('\n'), 400),
       });
@@ -296,8 +296,8 @@ export function compareWithSecondPass(extraction: Extraction, secondPass: string
     // words and a different order of the same tokens are not.
     const reordered = missing.length === 0;
     if (!reordered && critical.length === 0 && (words.length === 0 || missingWords.length / words.length < 0.3)) continue;
-    const detail = reordered ? 'inna kolejność lub kontekst' : `różnice: ${(critical.length ? critical : missing).slice(0, 6).join(', ')}`;
-    add(c, 'uncertain', `Odczyt „${shorten(run.text, 80)}” nie został potwierdzony drugim, niezależnym odczytem (${detail}).`, {
+    const detail = reordered ? 'different order or context' : `differences: ${(critical.length ? critical : missing).slice(0, 6).join(', ')}`;
+    add(c, 'uncertain', `Reading "${shorten(run.text, 80)}" was not confirmed by a second, independent reading (${detail}).`, {
       page: block.page,
       ref,
       excerpt: run.text,
@@ -311,8 +311,8 @@ export function structuralWarnings(extraction: Extraction): Warning[] {
   const c = collector();
   for (const { block, run, ref } of eachRun(extraction)) {
     if (run.kind !== 'illegible') continue;
-    const partial = run.text.trim() ? ` Odczytano częściowo: „${shorten(run.text, 60)}”.` : '';
-    add(c, 'illegible', `Nieczytelny fragment${run.reason ? ` (${run.reason})` : ''}.${partial}`, {
+    const partial = run.text.trim() ? ` Partially read: "${shorten(run.text, 60)}".` : '';
+    add(c, 'illegible', `Illegible fragment${run.reason ? ` (${run.reason})` : ''}.${partial}`, {
       page: block.page,
       ref,
     });
@@ -323,7 +323,7 @@ export function structuralWarnings(extraction: Extraction): Warning[] {
     add(
       c,
       'figure_omitted',
-      `Grafika, wykres lub zdjęcie ze str. ${block.page} nie jest przenoszone do wyniku${caption ? ` (podpis: „${shorten(caption, 60)}”)` : ''}. Sprawdź, czy nie zawiera danych technicznych.`,
+      `Graphic, chart or photo on page ${block.page} is not carried over to the output${caption ? ` (caption: "${shorten(caption, 60)}")` : ''}. Check that it contains no technical data.`,
       { page: block.page },
     );
   }
@@ -350,7 +350,7 @@ export function findLeaks(extraction: Extraction): Warning[] {
     const hay = normalize(`${run.text} ${printedText(run)}`).replace(/\s+/g, ' ');
     const hit = [...needles].find((n) => hay.includes(n));
     if (hit) {
-      add(c, 'possible_leak', `Tekst „${shorten(hit, 60)}” został oznaczony do usunięcia, ale występuje też w tym miejscu.`, {
+      add(c, 'possible_leak', `Text "${shorten(hit, 60)}" is marked for removal, but it also appears here.`, {
         page: block.page,
         ref,
       });
@@ -388,14 +388,14 @@ export function englishWarnings(extraction: Extraction): Warning[] {
     switch (unchanged ? 'same' : spacingFix ? 'english_part' : run.en_how) {
       case 'english_part':
         if (en.trim() && !compact(run.text).includes(compact(en))) {
-          add(c, 'english_check', `Tekst angielski „${shorten(en, 80)}” nie występuje w oryginale „${shorten(run.text, 80)}”.`, where);
+          add(c, 'english_check', `English text "${shorten(en, 80)}" does not appear in the original "${shorten(run.text, 80)}".`, where);
         }
         break;
       case 'corrected':
-        add(c, 'english_check', `Poprawiona pisownia: „${shorten(run.text, 80)}” → „${shorten(en, 80)}”.`, where);
+        add(c, 'english_check', `Spelling corrected: "${shorten(run.text, 80)}" → "${shorten(en, 80)}".`, where);
         break;
       case 'translated':
-        add(c, 'translated', `„${shorten(run.text, 80)}” → „${shorten(en, 80)}”.`, where);
+        add(c, 'translated', `"${shorten(run.text, 80)}" → "${shorten(en, 80)}".`, where);
         break;
       case 'duplicate': {
         // Every value of the skipped run must be printed in the English text of the same block.
@@ -405,7 +405,7 @@ export function englishWarnings(extraction: Extraction): Warning[] {
           add(
             c,
             'english_check',
-            `Pominięte jako powtórzenie tekstu angielskiego obok: „${shorten(run.text, 80)}”. Wartości ${lost.slice(0, 6).join(', ')} nie występują w tekście angielskim tego bloku.`,
+            `Skipped as a repeat of the English text next to it: "${shorten(run.text, 80)}". ${lost.length === 1 ? 'Value' : 'Values'} ${lost.slice(0, 6).join(', ')} ${lost.length === 1 ? 'does' : 'do'} not appear in the English text of this block.`,
             where,
           );
         } else if (run.text.trim()) {
@@ -415,7 +415,7 @@ export function englishWarnings(extraction: Extraction): Warning[] {
       }
     }
     if (!unchanged && run.en_how !== 'same' && run.text.trim() && !en.trim()) {
-      add(c, 'english_check', `Brak wersji angielskiej dla „${shorten(run.text, 80)}”.`, where);
+      add(c, 'english_check', `No English version for "${shorten(run.text, 80)}".`, where);
       continue;
     }
     if (!unchanged && run.en_how !== 'same') {
@@ -424,23 +424,25 @@ export function englishWarnings(extraction: Extraction): Warning[] {
       const added = difference(english, original);
       const missing = difference(original, english);
       if (added.length || missing.length) {
-        const detail = [missing.length ? `brak: ${missing.join(', ')}` : '', added.length ? `dodane: ${added.join(', ')}` : ''].filter(Boolean).join('; ');
-        add(c, 'english_check', `Liczby lub symbole w wersji angielskiej różnią się od oryginału (${detail}).`, where);
+        const detail = [missing.length ? `missing: ${missing.join(', ')}` : '', added.length ? `added: ${added.join(', ')}` : ''].filter(Boolean).join('; ');
+        add(c, 'english_check', `Numbers or symbols in the English version differ from the original (${detail}).`, where);
       }
     }
     const printed = printedText(run);
     if (NON_ENGLISH_LETTER.test(printed)) {
-      add(c, 'english_check', `Tekst do druku zawiera znaki spoza alfabetu angielskiego: „${shorten(printed, 80)}”.`, where);
+      add(c, 'english_check', `Text to print contains characters outside the English alphabet: "${shorten(printed, 80)}".`, where);
     }
   }
   // Skipped repetitions whose values are all in the English text are reported together: one check of the
   // struck-through fragments on the preview instead of a warning per line of a bilingual document.
   if (duplicates.length) {
-    const examples = duplicates.slice(0, 3).map((d) => `„${shorten(d, 30)}”`).join(', ');
+    const examples = duplicates.slice(0, 3).map((d) => `"${shorten(d, 30)}"`).join(', ');
     add(
       c,
       'english_check',
-      `Pominięto ${duplicates.length} ${duplicates.length === 1 ? 'fragment powtarzający' : 'fragmentów powtarzających'} tekst angielski obok (np. ${examples}). Na podglądzie są przekreślone na szaro: sprawdź, czy żaden nie zawiera informacji, której brak po angielsku.`,
+      duplicates.length === 1
+        ? `Skipped 1 fragment that repeats the English text next to it (e.g. ${examples}). It is struck through in grey on the preview: check that it holds no information missing from the English text.`
+        : `Skipped ${duplicates.length} fragments that repeat the English text next to them (e.g. ${examples}). They are struck through in grey on the preview: check that none of them holds information missing from the English text.`,
     );
   }
   return finish(c);

@@ -16,7 +16,7 @@ async function run(row: DocumentRow, actorId: string) {
   const started = Date.now();
   try {
     const { data: file, error } = await db().storage.from(ORIGINALS).download(row.original_path);
-    if (error || !file) throw new PipelineError('Nie znaleziono wgranego pliku. Wgraj dokument ponownie.');
+    if (error || !file) throw new PipelineError('The uploaded file was not found. Upload the document again.');
     const result = await processFile(new Uint8Array(await file.arrayBuffer()), row.mime_type);
     await db()
       .from('documents')
@@ -39,7 +39,7 @@ async function run(row: DocumentRow, actorId: string) {
     });
   } catch (error) {
     console.error('processing failed', row.id, error);
-    const message = error instanceof PipelineError ? error.message : 'Przetwarzanie nie powiodło się. Spróbuj ponownie.';
+    const message = error instanceof PipelineError ? error.message : 'Processing failed. Try again.';
     await db().from('documents').update({ status: 'error', error_message: message, updated_at: new Date().toISOString() }).eq('id', row.id);
     await logEvent(row.id, actorId, 'processing_failed', { message });
   }
@@ -49,8 +49,8 @@ export function POST(request: Request): Promise<Response> {
   return handle(async () => {
     const profile = await requireUser(request);
     const row = await loadDocument(documentId(request), profile);
-    if (row.status === 'processing') throw new HttpError(409, 'Dokument jest już przetwarzany.');
-    if (row.status === 'done') throw new HttpError(409, 'Dokument jest zakończony. Najpierw otwórz go ponownie do przeglądu.');
+    if (row.status === 'processing') throw new HttpError(409, 'The document is already being processed.');
+    if (row.status === 'done') throw new HttpError(409, 'The document is done. Reopen it for review first.');
     const saved = await saveDocument(row, {
       status: 'processing',
       processing_started_at: new Date().toISOString(),

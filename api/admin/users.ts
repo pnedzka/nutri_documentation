@@ -65,17 +65,17 @@ export function POST(request: Request): Promise<Response> {
     const fullName = typeof body.fullName === 'string' && body.fullName.trim() ? body.fullName.trim().slice(0, 200) : null;
     const invite = body.invite !== false;
     const password = typeof body.password === 'string' ? body.password : '';
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, 'Nieprawidłowy adres e-mail.');
-    if (!invite && password.length < MIN_PASSWORD) throw new HttpError(400, `Hasło musi mieć co najmniej ${MIN_PASSWORD} znaków.`);
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, 'Invalid e-mail address.');
+    if (!invite && password.length < MIN_PASSWORD) throw new HttpError(400, `The password must be at least ${MIN_PASSWORD} characters long.`);
 
     const created = invite
       ? await createInvitedUser(email, fullName)
       : await db().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName } }).then(({ data, error }) => ({ user: data.user, error }));
     if (created.error || !created.user) {
       const error = created.error as { code?: string; message?: string } | null;
-      if (error && (error.code === 'email_exists' || /already/i.test(error.message ?? ''))) throw new HttpError(400, 'Użytkownik z tym adresem już istnieje.');
+      if (error && (error.code === 'email_exists' || /already/i.test(error.message ?? ''))) throw new HttpError(400, 'A user with this address already exists.');
       console.error('[users] create', error);
-      throw new HttpError(400, 'Nie udało się utworzyć konta.');
+      throw new HttpError(400, 'Could not create the account.');
     }
     const profile: Profile = { id: created.user.id, email, full_name: fullName, role: role(body.role) };
     const { error: profileError } = await db().from('profiles').upsert(profile);
@@ -85,8 +85,8 @@ export function POST(request: Request): Promise<Response> {
         const url = await issueAccountLink('invite', created.user.id, appUrl(request));
         await sendAccountMail({ kind: 'invite', email, url, appUrl: appUrl(request), invitedBy: admin.full_name || admin.email });
       } catch (error) {
-        const reason = error instanceof HttpError ? error.message : 'błąd wysyłki';
-        throw new HttpError(502, `Konto zostało utworzone, ale zaproszenia nie wysłano: ${reason} Wyślij je ponownie przyciskiem „Wyślij link” na liście kont.`);
+        const reason = error instanceof HttpError ? error.message : 'sending failed.';
+        throw new HttpError(502, `The account was created, but the invitation was not sent: ${reason} Send it again with the "Send link" button in the account list.`);
       }
     }
     return json({ user: profile, invited: invite }, 201);
@@ -97,24 +97,24 @@ export function PATCH(request: Request): Promise<Response> {
   return handle(async () => {
     const admin = await requireAdmin(request);
     const body = await readJson<{ id?: unknown; role?: unknown; fullName?: unknown; password?: unknown; sendLink?: unknown }>(request);
-    if (typeof body.id !== 'string') throw new HttpError(400, 'Brak identyfikatora użytkownika.');
+    if (typeof body.id !== 'string') throw new HttpError(400, 'User ID is missing.');
     if (body.id === admin.id && body.role !== undefined && role(body.role) !== 'admin') {
-      throw new HttpError(400, 'Nie możesz odebrać uprawnień administratora samemu sobie.');
+      throw new HttpError(400, 'You cannot remove administrator rights from yourself.');
     }
     const changes: Partial<Profile> = {};
     if (body.role !== undefined) changes.role = role(body.role);
     if (typeof body.fullName === 'string') changes.full_name = body.fullName.trim().slice(0, 200) || null;
     if (body.password !== undefined) {
       if (typeof body.password !== 'string' || body.password.length < MIN_PASSWORD) {
-        throw new HttpError(400, `Hasło musi mieć co najmniej ${MIN_PASSWORD} znaków.`);
+        throw new HttpError(400, `The password must be at least ${MIN_PASSWORD} characters long.`);
       }
       const { error } = await db().auth.admin.updateUserById(body.id, { password: body.password });
-      if (error) throw new HttpError(400, 'Nie udało się zmienić hasła.');
+      if (error) throw new HttpError(400, 'Could not change the password.');
     }
     let sent: 'invite' | 'recovery' | undefined;
     if (body.sendLink === true) {
       const { data: found, error } = await db().auth.admin.getUserById(body.id);
-      if (error || !found.user?.email) throw new HttpError(404, 'Nie znaleziono użytkownika.');
+      if (error || !found.user?.email) throw new HttpError(404, 'User not found.');
       // An unused invitation is sent again; anyone else gets a password-reset link.
       sent = accountStatus(found.user) === 'invited' ? 'invite' : 'recovery';
       const url = await issueAccountLink(sent, found.user.id, appUrl(request));
@@ -123,7 +123,7 @@ export function PATCH(request: Request): Promise<Response> {
     const query = Object.keys(changes).length ? db().from('profiles').update(changes) : db().from('profiles').select();
     const { data, error } = await query.eq('id', body.id).select('id, email, full_name, role').maybeSingle();
     if (error) throw error;
-    if (!data) throw new HttpError(404, 'Nie znaleziono użytkownika.');
+    if (!data) throw new HttpError(404, 'User not found.');
     return json({ user: data, sent });
   });
 }
@@ -137,11 +137,11 @@ export function DELETE(request: Request): Promise<Response> {
   return handle(async () => {
     const admin = await requireAdmin(request);
     const body = await readJson<{ id?: unknown }>(request);
-    if (typeof body.id !== 'string') throw new HttpError(400, 'Brak identyfikatora użytkownika.');
-    if (body.id === admin.id) throw new HttpError(400, 'Nie możesz usunąć własnego konta.');
+    if (typeof body.id !== 'string') throw new HttpError(400, 'User ID is missing.');
+    if (body.id === admin.id) throw new HttpError(400, 'You cannot delete your own account.');
 
     const { data: found, error: findError } = await db().auth.admin.getUserById(body.id);
-    if (findError || !found.user) throw new HttpError(404, 'Nie znaleziono użytkownika.');
+    if (findError || !found.user) throw new HttpError(404, 'User not found.');
     const count = async (table: 'documents' | 'document_events', column: string) => {
       const { count: n, error } = await db().from(table).select('id', { count: 'exact', head: true }).eq(column, body.id);
       if (error) throw error;
@@ -152,14 +152,14 @@ export function DELETE(request: Request): Promise<Response> {
       count('documents', 'finalized_by'),
       count('document_events', 'actor_id'),
     ]);
-    if (documents) throw new HttpError(409, `Tego konta nie można usunąć: ma ${documents} dokument(ów). Dokumenty i ich historia muszą zostać zachowane.`);
-    if (finalized || events) throw new HttpError(409, 'Tego konta nie można usunąć: występuje w historii zmian dokumentów, która musi zostać zachowana.');
+    if (documents) throw new HttpError(409, `This account cannot be deleted: it has ${documents} document(s). Documents and their history must be kept.`);
+    if (finalized || events) throw new HttpError(409, 'This account cannot be deleted: it appears in the change history of documents, which must be kept.');
 
     // The profile and the account's e-mail links are deleted with the account (foreign keys with ON DELETE CASCADE).
     const { error } = await db().auth.admin.deleteUser(body.id);
     if (error) {
       console.error('[users] delete', error);
-      throw new HttpError(500, 'Nie udało się usunąć konta.');
+      throw new HttpError(500, 'Could not delete the account.');
     }
     console.info('[users] deleted', found.user.email, 'by', admin.email);
     return json({ deleted: found.user.email });

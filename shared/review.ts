@@ -31,7 +31,7 @@ export class ReviewError extends Error {}
 function cloneRun(extraction: Extraction, ref: RunRef): { extraction: Extraction; run: Run } {
   const copy = structuredClone(extraction);
   const run = findRun(copy, ref);
-  if (!run) throw new ReviewError('Nie znaleziono wskazanego fragmentu dokumentu.');
+  if (!run) throw new ReviewError('The selected fragment of the document was not found.');
   return { extraction: copy, run };
 }
 
@@ -41,7 +41,7 @@ export function applyReview(extraction: Extraction, warnings: Warning[], change:
     case 'ack': {
       const ids = new Set(change.warningIds);
       const found = warnings.filter((w) => ids.has(w.id) && w.status === 'open');
-      if (!found.length) throw new ReviewError('Te ostrzeżenia zostały już rozpatrzone.');
+      if (!found.length) throw new ReviewError('These warnings have already been resolved.');
       return {
         extraction,
         warnings: warnings.map((w) => (ids.has(w.id) && w.status === 'open' ? { ...w, status: 'acknowledged', resolvedBy: actorId, resolvedAt } : w)),
@@ -50,7 +50,7 @@ export function applyReview(extraction: Extraction, warnings: Warning[], change:
     }
     case 'edit': {
       const text = change.text.replace(/\r\n?/g, '\n');
-      if (text.length > 5000) throw new ReviewError('Tekst jest zbyt długi.');
+      if (text.length > 5000) throw new ReviewError('The text is too long.');
       const { extraction: next, run } = cloneRun(extraction, change.ref);
       const before = { ...run };
       run.kind = 'text';
@@ -72,7 +72,7 @@ export function applyReview(extraction: Extraction, warnings: Warning[], change:
     }
     case 'restore': {
       const { extraction: next, run } = cloneRun(extraction, change.ref);
-      if (run.kind !== 'redact') throw new ReviewError('Ten fragment nie jest oznaczony do usunięcia.');
+      if (run.kind !== 'redact') throw new ReviewError('This fragment is not marked for removal.');
       const before = { ...run };
       run.kind = 'text';
       run.category = null;
@@ -80,13 +80,13 @@ export function applyReview(extraction: Extraction, warnings: Warning[], change:
       return { extraction: next, warnings, event: { kind: 'restore_redaction', payload: { ref: change.ref, before } } };
     }
     case 'redact': {
-      if (!REDACTION_CATEGORIES.includes(change.category)) throw new ReviewError('Nieznana kategoria usunięcia.');
+      if (!REDACTION_CATEGORIES.includes(change.category)) throw new ReviewError('Unknown removal category.');
       const { extraction: next, run } = cloneRun(extraction, change.ref);
-      if (run.kind === 'redact') throw new ReviewError('Ten fragment jest już oznaczony do usunięcia.');
+      if (run.kind === 'redact') throw new ReviewError('This fragment is already marked for removal.');
       const before = { ...run };
       run.kind = 'redact';
       run.category = change.category;
-      run.reason = 'oznaczone ręcznie';
+      run.reason = 'marked manually';
       return {
         extraction: next,
         // Removing a flagged fragment settles its warnings: it will not be printed.
@@ -96,11 +96,11 @@ export function applyReview(extraction: Extraction, warnings: Warning[], change:
     }
     case 'insert': {
       const text = change.text.replace(/\r\n?/g, '\n').trim();
-      if (!text) throw new ReviewError('Wpisz tekst do dodania.');
-      if (text.length > 5000) throw new ReviewError('Tekst jest zbyt długi.');
+      if (!text) throw new ReviewError('Enter the text to add.');
+      if (text.length > 5000) throw new ReviewError('The text is too long.');
       const next = structuredClone(extraction);
       const at = change.afterBlockId === null ? 0 : next.blocks.findIndex((b) => b.id === change.afterBlockId) + 1;
-      if (at === 0 && change.afterBlockId !== null) throw new ReviewError('Nie znaleziono miejsca wstawienia.');
+      if (at === 0 && change.afterBlockId !== null) throw new ReviewError('The insertion point was not found.');
       const used = next.blocks.map((b) => Number(b.id.match(/^u(\d+)$/)?.[1] ?? 0));
       const block: Block = {
         id: `u${Math.max(0, ...used) + 1}`,

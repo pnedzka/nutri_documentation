@@ -32,18 +32,18 @@ interface DocumentResponse {
 }
 
 const EVENT_LABELS: Record<string, string> = {
-  process: 'Rozpoczęto przetwarzanie',
-  reprocess: 'Ponowne przetwarzanie',
-  processed: 'Dokument odczytany i zweryfikowany',
-  processing_failed: 'Przetwarzanie nie powiodło się',
-  ack_warning: 'Potwierdzono ostrzeżenie',
-  edit: 'Poprawiono fragment',
-  restore_redaction: 'Przywrócono fragment',
-  add_redaction: 'Oznaczono fragment do usunięcia',
-  insert: 'Dodano brakujący tekst',
-  products: 'Zmieniono nazwę/kod produktu NP',
-  finalize: 'Wygenerowano PDF',
-  reopen: 'Otwarto ponownie do edycji',
+  process: 'Processing started',
+  reprocess: 'Reprocessing started',
+  processed: 'Document read and verified',
+  processing_failed: 'Processing failed',
+  ack_warning: 'Warning confirmed',
+  edit: 'Fragment corrected',
+  restore_redaction: 'Fragment restored',
+  add_redaction: 'Fragment marked for removal',
+  insert: 'Missing text added',
+  products: 'NP product name/code changed',
+  finalize: 'PDF generated',
+  reopen: 'Reopened for editing',
 };
 
 const POLL_MS = 4000;
@@ -91,7 +91,7 @@ export function DocumentPage() {
     try {
       await fn();
     } catch (e) {
-      toast.error('Nie udało się zapisać zmiany', (e as Error).message);
+      toast.error('Could not save the change', (e as Error).message);
       void load();
     } finally {
       busyRef.current = false;
@@ -116,16 +116,16 @@ export function DocumentPage() {
   const finalize = () =>
     run(async () => {
       const res = await api<{ document: DocumentRecord; outputUrl: string | null }>(`/api/documents/${id}/finalize`, { method: 'POST' });
-      toast.success('PDF gotowy', 'Dokument na papierze firmowym Nutri Partners został wygenerowany.');
+      toast.success('PDF ready', 'The document on Nutri Partners letterhead has been generated.');
       await load();
       if (res.outputUrl) window.location.assign(res.outputUrl);
     });
 
   const remove = () =>
     run(async () => {
-      if (!confirm('Usunąć dokument wraz z plikami? Tej operacji nie można cofnąć.')) return;
+      if (!confirm('Delete the document and its files? This cannot be undone.')) return;
       await api(`/api/documents/${id}`, { method: 'DELETE' });
-      toast.success('Dokument usunięty');
+      toast.success('Document deleted');
       navigate(profile?.role === 'admin' && data?.document.owner_id !== profile.id ? '/admin/dokumenty' : '/');
     });
 
@@ -142,7 +142,7 @@ export function DocumentPage() {
       </div>
     );
   }
-  if (!data) return <p className="text-sm text-gray-500">Ładowanie…</p>;
+  if (!data) return <p className="text-sm text-gray-500">Loading…</p>;
 
   const doc = data.document;
   const warnings: Warning[] = doc.warnings ?? [];
@@ -159,10 +159,10 @@ export function DocumentPage() {
           <h1 className="text-2xl font-bold text-gray-900 break-words">{doc.original_filename}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
             <StatusBadge status={doc.status} />
-            <span>wgrano {formatDateTime(doc.created_at)}</span>
-            {doc.page_count ? <span>· stron: {doc.page_count}</span> : null}
+            <span>uploaded {formatDateTime(doc.created_at)}</span>
+            {doc.page_count ? <span>· {doc.page_count} {doc.page_count === 1 ? 'page' : 'pages'}</span> : null}
             {doc.source_kind && <span>· {SOURCE_LABELS[doc.source_kind]}</span>}
-            {!isOwn && <span>· właściciel: <strong className="text-gray-700">{ownerName(doc.owner)}</strong></span>}
+            {!isOwn && <span>· owner: <strong className="text-gray-700">{ownerName(doc.owner)}</strong></span>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -172,15 +172,15 @@ export function DocumentPage() {
               size="sm"
               disabled={busy}
               onClick={() => {
-                if (doc.status === 'error' || confirm('Przetworzyć dokument od nowa? Wszystkie dotychczasowe potwierdzenia i poprawki zostaną odrzucone.')) void process();
+                if (doc.status === 'error' || confirm('Process the document from scratch? All confirmations and corrections made so far will be discarded.')) void process();
               }}
             >
-              <RefreshCw size={14} /> Przetwórz ponownie
+              <RefreshCw size={14} /> Reprocess
             </Button>
           )}
           {canDelete && (
             <Button variant="danger" size="sm" disabled={busy} onClick={() => void remove()}>
-              <Trash2 size={14} /> Usuń
+              <Trash2 size={14} /> Delete
             </Button>
           )}
         </div>
@@ -191,9 +191,9 @@ export function DocumentPage() {
           <CardBody className="flex items-start gap-3 py-6">
             <Loader2 size={20} className="mt-0.5 animate-spin text-[#CC1F1F]" />
             <div>
-              <p className="font-medium text-gray-900">Trwa odczyt i weryfikacja dokumentu</p>
+              <p className="font-medium text-gray-900">Reading and verifying the document</p>
               <p className="text-sm text-gray-500 mt-1">
-                Treść jest przepisywana i porównywana ze źródłem. Zwykle trwa to 1–4 minuty. Możesz zamknąć tę stronę – status zobaczysz na liście dokumentów.
+                The content is being transcribed and compared with the source. This usually takes 1–4 minutes. You can close this page – the status is shown in the document list.
               </p>
             </div>
           </CardBody>
@@ -205,10 +205,10 @@ export function DocumentPage() {
           <CardBody className="flex items-start gap-3 py-6">
             <TriangleAlert size={20} className="mt-0.5 text-red-600" />
             <div>
-              <p className="font-medium text-gray-900">Nie udało się przetworzyć dokumentu</p>
+              <p className="font-medium text-gray-900">Could not process the document</p>
               <p className="text-sm text-red-700 mt-1">{doc.error_message}</p>
               <Button className="mt-3" size="sm" disabled={busy} onClick={() => void process()}>
-                <RefreshCw size={14} /> Spróbuj ponownie
+                <RefreshCw size={14} /> Try again
               </Button>
             </div>
           </CardBody>
@@ -223,13 +223,13 @@ export function DocumentPage() {
             busy={busy}
             outputUrl={data.outputUrl}
             onFinalize={() => void finalize()}
-            onReopen={() => confirm('Otworzyć dokument ponownie do edycji? Po zmianach trzeba będzie wygenerować PDF jeszcze raz.') && void patch({ action: 'reopen' })}
+            onReopen={() => confirm('Reopen the document for editing? After making changes, you will need to generate the PDF again.') && void patch({ action: 'reopen' })}
           />
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
             <Card className="xl:sticky xl:top-36 overflow-hidden">
               <CardHeader className="flex items-center gap-2 py-3">
                 <FileText size={16} className="text-[#CC1F1F]" />
-                <h2 className="text-sm font-semibold text-gray-900">Oryginał od dostawcy</h2>
+                <h2 className="text-sm font-semibold text-gray-900">Supplier's original</h2>
                 {data.originalUrl && (
                   <a
                     href={data.originalUrl}
@@ -238,7 +238,7 @@ export function DocumentPage() {
                     // Phones get a full-width button for PDFs instead (see OriginalPreview).
                     className={`ml-auto text-xs text-gray-500 underline hover:text-gray-800 ${doc.mime_type === 'application/pdf' ? 'hidden md:inline' : ''}`}
                   >
-                    otwórz w nowej karcie
+                    open in new tab
                   </a>
                 )}
               </CardHeader>
@@ -260,12 +260,12 @@ export function DocumentPage() {
                 <Card>
                   <CardHeader className="flex items-center gap-2 py-3">
                     <Package size={16} className="text-[#CC1F1F]" />
-                    <h2 className="text-sm font-semibold text-gray-900">Produkt Nutri Partners</h2>
+                    <h2 className="text-sm font-semibold text-gray-900">Nutri Partners product</h2>
                   </CardHeader>
                   <CardBody className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <Input label="Nazwa produktu NP" value={products.name} onChange={(e) => setProducts({ ...products, name: e.target.value })} />
-                      <Input label="Kod produktu NP" value={products.code} onChange={(e) => setProducts({ ...products, code: e.target.value })} />
+                      <Input label="NP product name" value={products.name} onChange={(e) => setProducts({ ...products, name: e.target.value })} />
+                      <Input label="NP product code" value={products.code} onChange={(e) => setProducts({ ...products, code: e.target.value })} />
                     </div>
                     <div className="flex items-center gap-3">
                       <Button
@@ -274,9 +274,9 @@ export function DocumentPage() {
                         disabled={busy || (products.name === (doc.np_product_name ?? '') && products.code === (doc.np_product_code ?? ''))}
                         onClick={() => void patch({ action: 'products', npProductName: products.name, npProductCode: products.code })}
                       >
-                        Zapisz
+                        Save
                       </Button>
-                      <p className="text-xs text-gray-500">Zastępują usunięte nazwy handlowe i kody dostawcy (zielone w podglądzie).</p>
+                      <p className="text-xs text-gray-500">These replace the supplier's removed trade names and codes (green in the preview).</p>
                     </div>
                   </CardBody>
                 </Card>
@@ -302,7 +302,7 @@ export function DocumentPage() {
 
               <Card>
                 <CardHeader className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
-                  <h2 className="text-sm font-semibold text-gray-900">Treść dokumentu</h2>
+                  <h2 className="text-sm font-semibold text-gray-900">Document content</h2>
                   <Legend />
                 </CardHeader>
                 <CardBody>
@@ -325,12 +325,12 @@ export function DocumentPage() {
   );
 }
 
-const SOURCE_LABELS = { text_pdf: 'PDF z warstwą tekstową', scan: 'skan (2 niezależne odczyty)', image: 'zdjęcie (2 niezależne odczyty)', docx: 'dokument Word' } as const;
+const SOURCE_LABELS = { text_pdf: 'PDF with a text layer', scan: 'scan (2 independent readings)', image: 'photo (2 independent readings)', docx: 'Word document' } as const;
 
 function BackLink() {
   return (
     <Link to="/" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
-      <ArrowLeft size={14} /> Moje dokumenty
+      <ArrowLeft size={14} /> My documents
     </Link>
   );
 }
@@ -338,10 +338,10 @@ function BackLink() {
 function Legend() {
   return (
     <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-      <span><span className="rounded bg-red-100 px-1 text-red-800 font-semibold">[NIECZYTELNE]</span> nieczytelne</span>
-      <span><span className="bg-gray-100 text-gray-400 line-through px-1">tekst</span> usuwane</span>
-      <span><span className="bg-amber-100 underline decoration-amber-500 px-1">tekst</span> do sprawdzenia</span>
-      <span>Kliknij fragment, aby go poprawić.</span>
+      <span><span className="rounded bg-red-100 px-1 text-red-800 font-semibold">[ILLEGIBLE]</span> illegible</span>
+      <span><span className="bg-gray-100 text-gray-400 line-through px-1">text</span> removed</span>
+      <span><span className="bg-amber-100 underline decoration-amber-500 px-1">text</span> to check</span>
+      <span>Click a fragment to correct it.</span>
     </div>
   );
 }
@@ -355,20 +355,20 @@ function ActionBar(props: { doc: DocumentRecord; open: number; busy: boolean; ou
           <div className="flex items-center gap-3">
             <FileCheck2 size={20} className="text-green-600" />
             <div>
-              <p className="font-medium text-gray-900">Dokument zneutralizowany</p>
-              <p className="text-sm text-gray-500">PDF wygenerowano {formatDateTime(doc.finalized_at)}.</p>
+              <p className="font-medium text-gray-900">Document neutralized</p>
+              <p className="text-sm text-gray-500">PDF generated {formatDateTime(doc.finalized_at)}.</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             {outputUrl && (
               <a href={outputUrl}>
                 <Button size="sm">
-                  <Download size={14} /> Pobierz PDF
+                  <Download size={14} /> Download PDF
                 </Button>
               </a>
             )}
             <Button size="sm" variant="secondary" disabled={busy} onClick={props.onReopen}>
-              <RotateCcw size={14} /> Edytuj ponownie
+              <RotateCcw size={14} /> Reopen
             </Button>
           </div>
         </CardBody>
@@ -380,11 +380,11 @@ function ActionBar(props: { doc: DocumentRecord; open: number; busy: boolean; ou
       <CardBody className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-sm text-gray-700">
           {open
-            ? `Przed wygenerowaniem PDF rozpatrz wszystkie ostrzeżenia (pozostało: ${open}). Porównaj treść z oryginałem.`
-            : 'Wszystkie ostrzeżenia rozpatrzone. Sprawdź treść i wygeneruj dokument na papierze firmowym.'}
+            ? `Review all warnings before generating the PDF (${open} left). Compare the content with the original.`
+            : 'All warnings reviewed. Check the content and generate the document on the letterhead.'}
         </p>
         <Button disabled={busy || open > 0} isLoading={busy} onClick={props.onFinalize} className="whitespace-nowrap">
-          <FileCheck2 size={16} /> Generuj PDF
+          <FileCheck2 size={16} /> Generate PDF
         </Button>
       </CardBody>
     </Card>
@@ -392,11 +392,11 @@ function ActionBar(props: { doc: DocumentRecord; open: number; busy: boolean; ou
 }
 
 function OriginalPreview({ url, mimeType }: { url: string | null; mimeType: string }) {
-  if (!url) return <p className="px-6 py-10 text-sm text-gray-500">Podgląd niedostępny.</p>;
+  if (!url) return <p className="px-6 py-10 text-sm text-gray-500">Preview unavailable.</p>;
   if (mimeType.startsWith('image/')) {
     return (
       <div className="max-h-[78vh] overflow-auto bg-gray-50">
-        <img src={url} alt="Oryginał dokumentu" className="w-full" />
+        <img src={url} alt="Original document" className="w-full" />
       </div>
     );
   }
@@ -412,17 +412,17 @@ function OriginalPreview({ url, mimeType }: { url: string | null; mimeType: stri
             className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 active:bg-gray-50"
           >
             <FileText size={16} className="text-[#CC1F1F]" />
-            Otwórz oryginał (PDF)
+            Open original (PDF)
           </a>
         </div>
-        <iframe src={url} title="Oryginał dokumentu" className="hidden md:block w-full h-[78vh] bg-gray-50" />
+        <iframe src={url} title="Original document" className="hidden md:block w-full h-[78vh] bg-gray-50" />
       </>
     );
   }
   return (
     <div className="px-6 py-10 text-sm text-gray-600">
-      Podgląd dokumentów Word nie jest dostępny w przeglądarce.{' '}
-      <a href={url} className="text-[#CC1F1F] underline">Pobierz oryginał</a>, aby porównać treść.
+      Word documents cannot be previewed in the browser.{' '}
+      <a href={url} className="text-[#CC1F1F] underline">Download the original</a> to compare the content.
     </div>
   );
 }
@@ -435,8 +435,8 @@ function EventsCard({ events }: { events: EventRow[] }) {
       <CardHeader className="py-3">
         <button className="flex w-full items-center gap-2 text-left" onClick={() => setOpen(!open)}>
           <History size={16} className="text-[#CC1F1F]" />
-          <h2 className="text-sm font-semibold text-gray-900">Historia zmian ({events.length})</h2>
-          <span className="ml-auto text-xs text-gray-500">{open ? 'zwiń' : 'rozwiń'}</span>
+          <h2 className="text-sm font-semibold text-gray-900">Change history ({events.length})</h2>
+          <span className="ml-auto text-xs text-gray-500">{open ? 'collapse' : 'expand'}</span>
         </button>
       </CardHeader>
       {open && (
@@ -462,9 +462,9 @@ function EventsCard({ events }: { events: EventRow[] }) {
 function EventDetail({ event }: { event: EventRow }) {
   const p = event.payload ?? {};
   const text = (v: unknown) => (v && typeof v === 'object' && 'text' in v ? String((v as { text: unknown }).text) : '');
-  if (event.kind === 'edit') return <span className="block text-xs text-gray-500">„{text(p.before)}” → „{text(p.after)}”</span>;
-  if (event.kind === 'insert') return <span className="block text-xs text-gray-500">„{String(p.text ?? '')}”</span>;
-  if (event.kind === 'restore_redaction' || event.kind === 'add_redaction') return <span className="block text-xs text-gray-500">„{text(p.before)}”</span>;
+  if (event.kind === 'edit') return <span className="block text-xs text-gray-500">"{text(p.before)}" → "{text(p.after)}"</span>;
+  if (event.kind === 'insert') return <span className="block text-xs text-gray-500">"{String(p.text ?? '')}"</span>;
+  if (event.kind === 'restore_redaction' || event.kind === 'add_redaction') return <span className="block text-xs text-gray-500">"{text(p.before)}"</span>;
   if (event.kind === 'ack_warning' && Array.isArray(p.warnings))
     return <span className="block text-xs text-gray-500">{(p.warnings as { message: string }[]).map((w) => w.message).join(' | ')}</span>;
   if (event.kind === 'processing_failed') return <span className="block text-xs text-red-600">{String(p.message ?? '')}</span>;

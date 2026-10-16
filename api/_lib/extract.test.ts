@@ -35,7 +35,7 @@ describe('preparePdf', () => {
   });
 
   it('rejects unsupported files', async () => {
-    await expect(prepareSource(new Uint8Array([1, 2, 3]), 'text/plain')).rejects.toThrow('Nieobsługiwany');
+    await expect(prepareSource(new Uint8Array([1, 2, 3]), 'text/plain')).rejects.toThrow('Unsupported');
     await expect(preparePdf(new Uint8Array([1, 2, 3]))).rejects.toThrow('PDF');
   });
 });

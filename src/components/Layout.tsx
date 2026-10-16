@@ -31,14 +31,14 @@ export function Layout() {
           <div className="flex items-center gap-3 min-w-0">
             <img src="/logo.png" alt="Nutri Partners" width={150} height={29} className="shrink-0" />
             <span className="hidden md:block h-5 w-px bg-gray-200" aria-hidden="true" />
-            <span className="hidden md:block text-sm font-medium text-gray-500 truncate">Neutralizacja dokumentów</span>
+            <span className="hidden md:block text-sm font-medium text-gray-500 truncate">Document Neutralization</span>
           </div>
           <div className="flex items-center gap-2">
             <NavLink
               to="/konto"
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100"
-              title="Moje konto"
-              aria-label="Moje konto"
+              title="My account"
+              aria-label="My account"
             >
               {isAdmin ? <Shield size={16} className="text-[#CC1F1F]" /> : <UserIcon size={16} />}
               <span className="hidden sm:inline max-w-[200px] truncate">{profile?.full_name || profile?.email}</span>
@@ -46,17 +46,17 @@ export function Layout() {
             <button
               onClick={() => void signOut()}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100"
-              aria-label="Wyloguj"
+              aria-label="Sign out"
             >
               <LogOut size={16} />
-              <span className="hidden sm:inline">Wyloguj</span>
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </div>
-        <nav className="max-w-[1400px] mx-auto px-4 sm:px-6 pb-3 flex gap-1 sm:gap-2" aria-label="Nawigacja">
-          <Tab to="/" icon={<FileText size={16} />} label="Moje dokumenty" short="Moje" />
-          {isAdmin && <Tab to="/admin/dokumenty" icon={<Shield size={16} />} label="Wszystkie dokumenty" short="Wszystkie" />}
-          {isAdmin && <Tab to="/admin/uzytkownicy" icon={<Users size={16} />} label="Użytkownicy" short="Użytkownicy" />}
+        <nav className="max-w-[1400px] mx-auto px-4 sm:px-6 pb-3 flex gap-1 sm:gap-2" aria-label="Navigation">
+          <Tab to="/" icon={<FileText size={16} />} label="My documents" short="Mine" />
+          {isAdmin && <Tab to="/admin/dokumenty" icon={<Shield size={16} />} label="All documents" short="All" />}
+          {isAdmin && <Tab to="/admin/uzytkownicy" icon={<Users size={16} />} label="Users" short="Users" />}
         </nav>
       </header>
       <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">

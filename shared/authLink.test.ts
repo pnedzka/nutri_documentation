@@ -28,7 +28,7 @@ describe('parseAuthLink', () => {
     });
     expect(parseAuthLink('', '?error=server_error&error_description=Database+error')).toEqual({
       kind: 'error',
-      message: 'Link jest nieprawidłowy (Database error).',
+      message: 'This link is invalid (Database error).',
     });
   });
 });

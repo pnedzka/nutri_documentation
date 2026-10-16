@@ -17,7 +17,7 @@ let client: SupabaseClient | null = null;
 export function db(): SupabaseClient {
   if (client) return client;
   const cfg = config();
-  if (!cfg) throw new HttpError(503, 'Baza danych nie jest skonfigurowana (brak zmiennych SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).');
+  if (!cfg) throw new HttpError(503, 'The database is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are missing).');
   client = createClient(cfg.url, cfg.key, { auth: { persistSession: false, autoRefreshToken: false } });
   return client;
 }

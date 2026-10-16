@@ -18,7 +18,7 @@ async function shrinkImage(file: File): Promise<File> {
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
     if (blob && blob.size <= MAX_IMAGE_BYTES) return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
   }
-  throw new Error('Zdjęcie jest zbyt duże. Zrób zdjęcie w niższej rozdzielczości.');
+  throw new Error('The photo is too large. Take it at a lower resolution.');
 }
 
 const BY_EXTENSION: Record<string, string> = {
@@ -35,8 +35,8 @@ export function fileType(file: File): string {
 }
 
 export function validateFile(file: File): string | null {
-  if (!ACCEPTED_TYPES[fileType(file)]) return 'Obsługiwane są pliki PDF, DOCX, JPG i PNG.';
-  if (file.size > MAX_UPLOAD_BYTES && !fileType(file).startsWith('image/')) return `Plik może mieć najwyżej ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`;
+  if (!ACCEPTED_TYPES[fileType(file)]) return 'Supported files: PDF, DOCX, JPG and PNG.';
+  if (file.size > MAX_UPLOAD_BYTES && !fileType(file).startsWith('image/')) return `The file can be at most ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`;
   return null;
 }
 
@@ -46,20 +46,20 @@ export async function uploadDocument(
   products: { npProductName: string; npProductCode: string },
   onStep: (step: string) => void,
 ): Promise<DocumentRecord> {
-  if (!supabase) throw new Error('Aplikacja nie jest skonfigurowana.');
-  onStep('Przygotowanie pliku…');
+  if (!supabase) throw new Error('The app is not configured.');
+  onStep('Preparing file…');
   const file = await shrinkImage(new File([original], original.name, { type: fileType(original) }));
   const { document, upload } = await api<{ document: DocumentRecord; upload: { path: string; token: string } }>('/api/documents', {
     method: 'POST',
     body: { filename: original.name, mimeType: file.type, size: file.size, ...products },
   });
-  onStep('Wysyłanie pliku…');
+  onStep('Uploading file…');
   const { error } = await supabase.storage.from('originals').uploadToSignedUrl(upload.path, upload.token, file, { contentType: file.type });
   if (error) {
     await api(`/api/documents/${document.id}`, { method: 'DELETE' }).catch(() => {});
-    throw new Error(`Nie udało się wysłać pliku: ${error.message}`);
+    throw new Error(`Could not upload the file: ${error.message}`);
   }
-  onStep('Uruchamianie przetwarzania…');
+  onStep('Starting processing…');
   const { document: started } = await api<{ document: DocumentRecord }>(`/api/documents/${document.id}/process`, { method: 'POST' });
   return started;
 }

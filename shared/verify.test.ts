@@ -4,8 +4,8 @@ import { compareWithSecondPass, findLeaks, findOmissions, structuralWarnings, ve
 import { toPrintable } from './printable.js';
 
 const t = (text: string): Run => ({ kind: 'text', text, category: null, reason: null });
-const ill = (text: string, reason = 'rozmazane'): Run => ({ kind: 'illegible', text, category: null, reason });
-const red = (text: string, category: Run['category']): Run => ({ kind: 'redact', text, category, reason: 'dane dostawcy' });
+const ill = (text: string, reason = 'blurred'): Run => ({ kind: 'illegible', text, category: null, reason });
+const red = (text: string, category: Run['category']): Run => ({ kind: 'redact', text, category, reason: 'supplier data' });
 
 function block(partial: Partial<Block> & Pick<Block, 'type'>): Block {
   return { id: Math.random().toString(36).slice(2), page: 1, level: null, runs: null, items: null, rows: null, header: null, body: null, ...partial };
@@ -112,10 +112,10 @@ describe('structuralWarnings', () => {
   it('reports illegible spots, figures and notes', () => {
     const e = doc(
       [
-        block({ type: 'paragraph', runs: [t('Lead '), ill('0.0', 'ostatnia cyfra nieczytelna')] }),
+        block({ type: 'paragraph', runs: [t('Lead '), ill('0.0', 'last digit illegible')] }),
         block({ type: 'figure', runs: [t('Fig. 1 Particle size')] }),
       ],
-      ['Na str. 1 jest odręczny podpis.'],
+      ['Handwritten signature on page 1.'],
     );
     expect(structuralWarnings(e).map((w) => w.kind)).toEqual(['illegible', 'figure_omitted', 'model_note']);
   });
@@ -152,6 +152,6 @@ describe('toPrintable', () => {
     const table = p.blocks[0] as Extract<typeof p.blocks[number], { type: 'table' }>;
     expect(table.header[0].map((c) => c.map((r) => r.text).join(''))).toEqual(['Parameter', 'Value']);
     expect(table.body[0][1]).toEqual([{ text: '1,', illegible: true }]);
-    expect(p.illegible).toEqual([{ page: 1, text: '1,', reason: 'rozmazane' }]);
+    expect(p.illegible).toEqual([{ page: 1, text: '1,', reason: 'blurred' }]);
   });
 });

@@ -7,7 +7,7 @@ const EFFORT = (process.env.CLAUDE_EFFORT as Effort | undefined) || 'medium';
 let client: Anthropic | null = null;
 const getClient = () => (client ??= new Anthropic({ maxRetries: 3 }));
 
-/** A failure the user should see as is (Polish). */
+/** A failure the user should see as is. */
 export class PipelineError extends Error {}
 
 export type UserContent = Anthropic.Beta.BetaContentBlockParam[];
@@ -37,15 +37,15 @@ export async function structuredCall<T>(args: {
   try {
     message = await stream.finalMessage();
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) throw new PipelineError('Nieprawidłowy klucz ANTHROPIC_API_KEY.');
-    if (error instanceof Anthropic.RateLimitError) throw new PipelineError('Przekroczono limit zapytań do Claude. Spróbuj ponownie za chwilę.');
-    if (error instanceof Anthropic.BadRequestError) throw new PipelineError(`Claude odrzucił zapytanie: ${error.message}`);
-    if (error instanceof Anthropic.APIError) throw new PipelineError(`Błąd Claude API (${error.status ?? 'brak połączenia'}). Spróbuj ponownie.`);
+    if (error instanceof Anthropic.AuthenticationError) throw new PipelineError('Invalid ANTHROPIC_API_KEY.');
+    if (error instanceof Anthropic.RateLimitError) throw new PipelineError('Claude request limit exceeded. Try again in a moment.');
+    if (error instanceof Anthropic.BadRequestError) throw new PipelineError(`Claude rejected the request: ${error.message}`);
+    if (error instanceof Anthropic.APIError) throw new PipelineError(`Claude API error (${error.status ?? 'no connection'}). Try again.`);
     throw error;
   }
-  if (message.stop_reason === 'refusal') throw new PipelineError('Claude odmówił przetworzenia tego dokumentu.');
+  if (message.stop_reason === 'refusal') throw new PipelineError('Claude declined to process this document.');
   if (message.stop_reason === 'max_tokens') {
-    throw new PipelineError('Dokument jest zbyt obszerny, by przetworzyć go w całości. Podziel go na mniejsze pliki.');
+    throw new PipelineError('The document is too long to process in full. Split it into smaller files.');
   }
   const text = message.content
     .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
@@ -54,6 +54,6 @@ export async function structuredCall<T>(args: {
   try {
     return JSON.parse(text) as T;
   } catch {
-    throw new PipelineError('Odpowiedź Claude nie jest poprawnym JSON-em. Spróbuj przetworzyć dokument ponownie.');
+    throw new PipelineError('Claude\'s response is not valid JSON. Try processing the document again.');
   }
 }

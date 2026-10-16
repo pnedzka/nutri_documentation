@@ -35,36 +35,36 @@ export function AdminDocumentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Wszystkie dokumenty</h1>
-        <p className="text-sm text-gray-500 mt-1">Dokumenty wszystkich użytkowników wraz z właścicielem.</p>
+        <h1 className="text-2xl font-bold text-gray-900">All documents</h1>
+        <p className="text-sm text-gray-500 mt-1">All users' documents, with their owners.</p>
       </div>
       <Card>
         <CardHeader className="flex flex-col lg:flex-row lg:items-center gap-3 justify-between">
           <div className="flex items-center gap-2">
             <Shield size={16} className="text-[#CC1F1F]" />
             <h2 className="text-sm font-semibold text-gray-900">
-              Dokumenty {documents ? `(${filtered.length}${filtered.length !== documents.length ? ` z ${documents.length}` : ''})` : ''}
+              Documents {documents ? `(${filtered.length}${filtered.length !== documents.length ? ` of ${documents.length}` : ''})` : ''}
             </h2>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-            <Input placeholder="Szukaj pliku lub produktu" value={query} onChange={(e) => setQuery(e.target.value)} leftIcon={<Search size={16} />} />
-            <select className={selectClass} value={owner} onChange={(e) => setOwner(e.target.value)} aria-label="Właściciel">
-              <option value="">Wszyscy właściciele</option>
+            <Input placeholder="Search files or products" value={query} onChange={(e) => setQuery(e.target.value)} leftIcon={<Search size={16} />} />
+            <select className={selectClass} value={owner} onChange={(e) => setOwner(e.target.value)} aria-label="Owner">
+              <option value="">All owners</option>
               {owners.map(([id, name]) => (
                 <option key={id} value={id}>{name}</option>
               ))}
             </select>
             <select className={selectClass} value={status} onChange={(e) => setStatus(e.target.value as DocumentStatus | '')} aria-label="Status">
-              <option value="">Każdy status</option>
-              <option value="processing">Przetwarzanie</option>
-              <option value="review">Do przeglądu</option>
-              <option value="done">Gotowe</option>
-              <option value="error">Błąd</option>
+              <option value="">Any status</option>
+              <option value="processing">Processing</option>
+              <option value="review">In review</option>
+              <option value="done">Done</option>
+              <option value="error">Error</option>
             </select>
           </div>
         </CardHeader>
         {error && <p className="px-6 py-4 text-sm text-red-600">{error}</p>}
-        {documents ? <DocumentsTable documents={filtered} showOwner /> : !error && <p className="px-6 py-10 text-center text-sm text-gray-500">Ładowanie…</p>}
+        {documents ? <DocumentsTable documents={filtered} showOwner /> : !error && <p className="px-6 py-10 text-center text-sm text-gray-500">Loading…</p>}
       </Card>
     </div>
   );

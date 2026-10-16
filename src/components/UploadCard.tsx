@@ -35,10 +35,10 @@ export function UploadCard() {
     if (!file) return;
     try {
       const doc = await uploadDocument(file, { npProductName, npProductCode }, setStep);
-      toast.success('Dokument przyjęty', 'Trwa odczyt i weryfikacja – to może potrwać kilka minut.');
+      toast.success('Document received', 'Reading and verification in progress – this may take a few minutes.');
       navigate(`/dokumenty/${doc.id}`);
     } catch (e) {
-      toast.error('Nie udało się wgrać dokumentu', (e as Error).message);
+      toast.error('Could not upload the document', (e as Error).message);
       setStep(null);
     }
   };
@@ -47,7 +47,7 @@ export function UploadCard() {
     <Card>
       <CardHeader className="flex items-center gap-2">
         <FileUp size={16} className="text-[#CC1F1F]" />
-        <h2 className="text-sm font-semibold text-gray-900">Nowy dokument</h2>
+        <h2 className="text-sm font-semibold text-gray-900">New document</h2>
       </CardHeader>
       <CardBody className="space-y-4">
         <div
@@ -70,10 +70,10 @@ export function UploadCard() {
             <p className="text-sm font-medium text-gray-900 break-words">{file.name}</p>
           ) : (
             <p className="text-sm text-gray-600">
-              Przeciągnij plik od dostawcy albo <span className="text-[#CC1F1F] font-medium">wybierz z dysku</span>
+              Drop a supplier file here or <span className="text-[#CC1F1F] font-medium">browse</span>
             </p>
           )}
-          <p className="text-xs text-gray-400">PDF, DOCX, JPG lub PNG · do {MAX_UPLOAD_BYTES / 1024 / 1024} MB</p>
+          <p className="text-xs text-gray-400">PDF, DOCX, JPG or PNG · up to {MAX_UPLOAD_BYTES / 1024 / 1024} MB</p>
           <input
             ref={inputRef}
             type="file"
@@ -86,15 +86,15 @@ export function UploadCard() {
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Nazwa produktu NP" placeholder="opcjonalnie" value={npProductName} onChange={(e) => setName(e.target.value)} />
-          <Input label="Kod produktu NP" placeholder="opcjonalnie" value={npProductCode} onChange={(e) => setCode(e.target.value)} />
+          <Input label="NP product name" placeholder="optional" value={npProductName} onChange={(e) => setName(e.target.value)} />
+          <Input label="NP product code" placeholder="optional" value={npProductCode} onChange={(e) => setCode(e.target.value)} />
         </div>
         <p className="text-xs text-gray-500 -mt-1">
-          Zastąpią nazwę handlową i kod produktu dostawcy. Puste pola = te fragmenty zostaną po prostu usunięte.
+          These replace the supplier's trade name and product code. If left empty, those fragments are simply removed.
         </p>
         <div className="flex items-center gap-3">
           <Button onClick={() => void submit()} disabled={!file} isLoading={!!step}>
-            Neutralizuj dokument
+            Neutralize document
           </Button>
           {step && <span className="text-sm text-gray-500">{step}</span>}
         </div>

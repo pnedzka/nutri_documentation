@@ -1,4 +1,4 @@
-const dateTime = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
+const dateTime = new Intl.DateTimeFormat('en-GB', { dateStyle: 'short', timeStyle: 'short' });
 
 export const formatDateTime = (iso: string | null) => (iso ? dateTime.format(new Date(iso)) : '—');
 

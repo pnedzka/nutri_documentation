@@ -18,7 +18,7 @@ export function GET(request: Request): Promise<Response> {
   return handle(async () => {
     const profile = await requireUser(request);
     const all = new URL(request.url).searchParams.get('scope') === 'all';
-    if (all && profile.role !== 'admin') throw new HttpError(403, 'Ta lista jest dostępna tylko dla administratora.');
+    if (all && profile.role !== 'admin') throw new HttpError(403, 'This list is available to administrators only.');
     let query = db().from('documents').select(`${DOCUMENT_COLUMNS}, ${OWNER_JOIN}`).order('created_at', { ascending: false }).limit(500);
     if (!all) query = query.eq('owner_id', profile.id);
     const { data, error } = await query;
@@ -44,9 +44,9 @@ export function POST(request: Request): Promise<Response> {
     const filename = clean(body.filename, 200);
     const mimeType = typeof body.mimeType === 'string' ? body.mimeType : '';
     const size = typeof body.size === 'number' ? body.size : 0;
-    if (!filename) throw new HttpError(400, 'Brak nazwy pliku.');
-    if (!ACCEPTED_TYPES[mimeType]) throw new HttpError(400, 'Obsługiwane są pliki PDF, DOCX, JPG i PNG.');
-    if (size <= 0 || size > MAX_UPLOAD_BYTES) throw new HttpError(400, `Plik może mieć najwyżej ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`);
+    if (!filename) throw new HttpError(400, 'The file name is missing.');
+    if (!ACCEPTED_TYPES[mimeType]) throw new HttpError(400, 'Supported files are PDF, DOCX, JPG and PNG.');
+    if (size <= 0 || size > MAX_UPLOAD_BYTES) throw new HttpError(400, `The file can be at most ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`);
 
     await ensureBuckets();
     const id = crypto.randomUUID();

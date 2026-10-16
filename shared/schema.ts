@@ -13,10 +13,10 @@ export const REDACTION_CATEGORIES = ['supplier_identity', 'trade_name', 'supplie
 export type RedactionCategory = (typeof REDACTION_CATEGORIES)[number];
 
 export const REDACTION_LABELS: Record<RedactionCategory, string> = {
-  supplier_identity: 'Dane dostawcy',
-  trade_name: 'Nazwa handlowa',
-  supplier_code: 'Kod dostawcy',
-  commercial_terms: 'Warunki handlowe',
+  supplier_identity: 'Supplier identity',
+  trade_name: 'Trade name',
+  supplier_code: 'Supplier code',
+  commercial_terms: 'Commercial terms',
 };
 
 export type RunKind = 'text' | 'illegible' | 'redact';
@@ -39,7 +39,7 @@ export interface Run {
   text: string;
   /** Only for `redact`. */
   category: RedactionCategory | null;
-  /** Why the run is illegible or removed (short, Polish). */
+  /** Why the run is illegible or removed (short, English). */
   reason: string | null;
   /** English version printed in the PDF; null = print `text` as is. Missing in documents processed before. */
   en?: string | null;
@@ -82,7 +82,7 @@ export interface Extraction {
   /** Number of pages the model saw. */
   page_count: number;
   blocks: Block[];
-  /** Anything the model could not represent (stamps, signatures, handwriting, images), in Polish. */
+  /** Anything the model could not represent (stamps, signatures, handwriting, images), in English. */
   notes: string[];
 }
 
@@ -98,15 +98,15 @@ export type WarningKind =
   | 'model_note';
 
 export const WARNING_LABELS: Record<WarningKind, string> = {
-  illegible: 'Nieczytelne',
-  unverified: 'Niezgodne ze źródłem',
-  possibly_omitted: 'Możliwe pominięcie',
-  uncertain: 'Niepewny odczyt',
-  figure_omitted: 'Grafika pominięta',
-  possible_leak: 'Możliwe dane dostawcy',
-  translated: 'Tłumaczenie',
-  english_check: 'Wersja angielska',
-  model_note: 'Uwaga',
+  illegible: 'Illegible',
+  unverified: 'Not in source',
+  possibly_omitted: 'Possibly omitted',
+  uncertain: 'Uncertain reading',
+  figure_omitted: 'Figure omitted',
+  possible_leak: 'Possible supplier data',
+  translated: 'Translation',
+  english_check: 'English version',
+  model_note: 'Note',
 };
 
 /** Points at one run inside the extraction. `cell` depends on the block type, see `getRuns`. */

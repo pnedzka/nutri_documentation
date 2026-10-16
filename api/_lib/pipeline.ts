@@ -66,7 +66,7 @@ export async function processFile(bytes: Uint8Array, mimeType: string): Promise<
   } else if (readings) {
     const pages = mergeReadings(readings, source.parts, extraction.page_count);
     warnings.push(...compareWithSecondPass(extraction, pages));
-    warnings.push(...findOmissions(extraction, pages, 'drugiego odczytu dokumentu'));
+    warnings.push(...findOmissions(extraction, pages, 'the second reading of the document'));
   }
   return { extraction, warnings: numberWarnings(warnings), source: { kind: source.kind, pageCount: source.pageCount } };
 }
@@ -145,7 +145,7 @@ export function mergeTranscriptions(parts: Extraction[], sourceParts: SourcePart
   const languages = new Map<string, number>();
   parts.forEach((part, i) => {
     const sp = sourceParts[i];
-    if (!part || !Array.isArray(part.blocks)) throw new PipelineError('Claude zwrócił niekompletny wynik. Spróbuj ponownie.');
+    if (!part || !Array.isArray(part.blocks)) throw new PipelineError('Claude returned an incomplete result. Try again.');
     for (const raw of part.blocks) {
       const block = sanitizeBlock(raw, absolutePage((raw as Block)?.page, sp), `b${blocks.length + 1}`);
       if (block) blocks.push(block);
@@ -154,7 +154,7 @@ export function mergeTranscriptions(parts: Extraction[], sourceParts: SourcePart
     const lang = typeof part.language === 'string' ? part.language.toLowerCase().slice(0, 2) : '';
     if (lang) languages.set(lang, (languages.get(lang) ?? 0) + part.blocks.length);
   });
-  if (!blocks.length) throw new PipelineError('Nie odczytano żadnej treści z dokumentu.');
+  if (!blocks.length) throw new PipelineError('No content could be read from the document.');
   const language = [...languages.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'en';
   return { language, page_count: source.pageCount ?? 1, blocks, notes };
 }

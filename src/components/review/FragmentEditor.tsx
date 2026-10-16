@@ -28,7 +28,7 @@ interface Props {
   onAck: (ids: string[]) => void;
 }
 
-const KIND_LABEL = { text: 'Tekst', illegible: 'Nieczytelne', redact: 'Do usunięcia' } as const;
+const KIND_LABEL = { text: 'Text', illegible: 'Illegible', redact: 'To be removed' } as const;
 
 /** Details and actions for the fragment clicked in the document view. */
 export function FragmentEditor(props: Props) {
@@ -48,22 +48,22 @@ export function FragmentEditor(props: Props) {
     <Card className="border-[#CC1F1F]/30 shadow-md">
       <CardHeader className="flex items-center justify-between gap-2 py-3">
         <h2 className="text-sm font-semibold text-gray-900">
-          Wybrany fragment <span className="font-normal text-gray-500">· {KIND_LABEL[run.kind]}{page ? ` · str. ${page}` : ''}</span>
+          Selected fragment <span className="font-normal text-gray-500">· {KIND_LABEL[run.kind]}{page ? ` · p. ${page}` : ''}</span>
         </h2>
-        <button onClick={props.onClose} className="text-gray-400 hover:text-gray-700" aria-label="Zamknij">
+        <button onClick={props.onClose} className="text-gray-400 hover:text-gray-700" aria-label="Close">
           <X size={16} />
         </button>
       </CardHeader>
       <CardBody className="space-y-3">
         {run.kind === 'redact' && (
           <p className="text-sm text-gray-700">
-            Oznaczone do usunięcia jako <strong>{REDACTION_LABELS[run.category ?? 'supplier_identity']}</strong>
-            {run.reason ? ` – ${run.reason}` : ''}. W PDF ten fragment nie wystąpi.
+            Marked for removal as <strong>{REDACTION_LABELS[run.category ?? 'supplier_identity']}</strong>
+            {run.reason ? ` – ${run.reason}` : ''}. This fragment will not appear in the PDF.
           </p>
         )}
         {run.kind === 'illegible' && (
           <p className="text-sm text-red-700">
-            Nieczytelne{run.reason ? ` – ${run.reason}` : ''}. Wpisz wartość tylko wtedy, gdy znasz ją na pewno (np. z lepszej kopii dokumentu).
+            Illegible{run.reason ? ` – ${run.reason}` : ''}. Enter a value only if you know it for certain (e.g. from a better copy of the document).
           </p>
         )}
         {related.map((w) => (
@@ -73,7 +73,7 @@ export function FragmentEditor(props: Props) {
             </span>
             {editable && w.status === 'open' && (
               <button className="shrink-0 underline" disabled={busy} onClick={() => props.onAck([w.id])}>
-                Potwierdzam
+                Confirm
               </button>
             )}
           </div>
@@ -81,32 +81,32 @@ export function FragmentEditor(props: Props) {
 
         {original !== null && (
           <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
-            <p className="font-semibold text-gray-700">Oryginał (transkrypcja):</p>
+            <p className="font-semibold text-gray-700">Original (transcription):</p>
             <p className="mt-0.5 whitespace-pre-wrap">{original}</p>
           </div>
         )}
         {editable && run.kind !== 'redact' && (
           <>
-            {original !== null && <p className="text-xs font-semibold text-gray-700">Tekst w PDF (po angielsku):</p>}
+            {original !== null && <p className="text-xs font-semibold text-gray-700">Text in the PDF (English):</p>}
             <textarea
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#CC1F1F]"
               rows={Math.min(8, Math.max(2, Math.ceil(draft.length / 60)))}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
             />
-            <p className="text-xs text-gray-500">Poprawiaj wyłącznie na podstawie oryginału dokumentu. Każda zmiana jest zapisywana w historii.</p>
+            <p className="text-xs text-gray-500">Make corrections only based on the original document. Every change is recorded in the history.</p>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" disabled={busy || draft === printed} onClick={() => props.onEdit(draft)}>
-                <Save size={14} /> Zapisz poprawkę
+                <Save size={14} /> Save correction
               </Button>
               {printed && (
                 <Button
                   size="sm"
                   variant="secondary"
                   disabled={busy}
-                  onClick={() => confirm('Usunąć ten tekst z dokumentu (np. gdy nie występuje w oryginale)?') && props.onEdit('')}
+                  onClick={() => confirm('Delete this text from the document (e.g. if it is not in the original)?') && props.onEdit('')}
                 >
-                  <Eraser size={14} /> Usuń tekst
+                  <Eraser size={14} /> Delete text
                 </Button>
               )}
             </div>
@@ -115,14 +115,14 @@ export function FragmentEditor(props: Props) {
                 value={category}
                 onChange={(e) => setCategory(e.target.value as RedactionCategory)}
                 className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm"
-                aria-label="Kategoria usunięcia"
+                aria-label="Removal category"
               >
                 {REDACTION_CATEGORIES.map((c) => (
                   <option key={c} value={c}>{REDACTION_LABELS[c]}</option>
                 ))}
               </select>
               <Button size="sm" variant="secondary" disabled={busy} onClick={() => props.onRedact(category)}>
-                <Scissors size={14} /> Oznacz do usunięcia
+                <Scissors size={14} /> Mark for removal
               </Button>
             </div>
           </>
@@ -131,7 +131,7 @@ export function FragmentEditor(props: Props) {
           <>
             <p className="rounded bg-gray-50 px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap">{run.text}</p>
             <Button size="sm" variant="secondary" disabled={busy} onClick={props.onRestore}>
-              <RotateCcw size={14} /> Przywróć do dokumentu
+              <RotateCcw size={14} /> Restore to document
             </Button>
           </>
         )}

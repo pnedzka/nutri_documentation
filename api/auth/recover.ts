@@ -1,6 +1,6 @@
 //   POST /api/auth/recover   body { email } → { ok: true }
 //
-// "Nie pamiętasz hasła?" on the login screen. Public: the answer is the same whether the account exists or not, so
+// "Forgot password?" on the login screen. Public: the answer is the same whether the account exists or not, so
 // it cannot be used to find out who has an account. One e-mail per account per minute at most.
 
 import { HttpError, appUrl, handle, json, readJson } from '../_lib/http.js';
@@ -14,7 +14,7 @@ export function POST(request: Request): Promise<Response> {
   return handle(async () => {
     const body = await readJson<{ email?: unknown }>(request);
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, 'Nieprawidłowy adres e-mail.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, 'Invalid e-mail address.');
 
     const { data: profile, error } = await db().from('profiles').select('id').eq('email', email).maybeSingle();
     if (error) throw error;

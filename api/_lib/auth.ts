@@ -11,9 +11,9 @@ const adminEmails = () =>
 /** The signed-in user (from the Supabase access token in the Authorization header) and their profile. */
 export async function requireUser(request: Request): Promise<Profile> {
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  if (!token) throw new HttpError(401, 'Zaloguj się.');
+  if (!token) throw new HttpError(401, 'Please sign in.');
   const { data, error } = await db().auth.getUser(token);
-  if (error || !data.user) throw new HttpError(401, 'Sesja wygasła. Zaloguj się ponownie.');
+  if (error || !data.user) throw new HttpError(401, 'Your session has expired. Please sign in again.');
   const user = data.user;
   const email = (user.email ?? '').toLowerCase();
   const shouldBeAdmin = adminEmails().includes(email);
@@ -41,6 +41,6 @@ export async function requireUser(request: Request): Promise<Profile> {
 
 export async function requireAdmin(request: Request): Promise<Profile> {
   const profile = await requireUser(request);
-  if (profile.role !== 'admin') throw new HttpError(403, 'Ta funkcja jest dostępna tylko dla administratora.');
+  if (profile.role !== 'admin') throw new HttpError(403, 'This feature is available to administrators only.');
   return profile;
 }

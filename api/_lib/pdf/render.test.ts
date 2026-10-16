@@ -17,14 +17,14 @@ export const SAMPLE: Extraction = {
   notes: [],
   blocks: [
     b({ type: 'heading', level: 1, runs: [t('SPECYFIKACJA PRODUKTU')] }, 'b1'),
-    b({ type: 'paragraph', runs: [t('Mleko w proszku odtłuszczone '), { kind: 'redact', text: 'ACME-SMP 26', category: 'trade_name', reason: 'nazwa handlowa' }, t(', źródło: zażółć gęślą jaźń.')] }, 'b2'),
+    b({ type: 'paragraph', runs: [t('Mleko w proszku odtłuszczone '), { kind: 'redact', text: 'ACME-SMP 26', category: 'trade_name', reason: 'trade name' }, t(', źródło: zażółć gęślą jaźń.')] }, 'b2'),
     b({ type: 'heading', level: 2, runs: [t('Parametry fizykochemiczne')] }, 'b3'),
     b({
       type: 'key_value',
       rows: [
         { key: [t('Wilgotność')], value: [t('maks. 4,0 %')] },
         { key: [t('Białko (N × 6,38)')], value: [t('min. 34,0 %')] },
-        { key: [t('Ołów (Pb)')], value: [t('≤ 0,'), { kind: 'illegible', text: '0', category: null, reason: 'rozmazana cyfra' }, t(' mg/kg')] },
+        { key: [t('Ołów (Pb)')], value: [t('≤ 0,'), { kind: 'illegible', text: '0', category: null, reason: 'blurred digit' }, t(' mg/kg')] },
       ],
     }, 'b4'),
     b({

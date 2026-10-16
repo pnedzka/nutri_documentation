@@ -106,26 +106,26 @@ export const useAuth = create<AuthState>((set, get) => {
       };
     },
     signIn: async (email, password) => {
-      if (!supabase) throw new Error('Aplikacja nie jest skonfigurowana.');
+      if (!supabase) throw new Error('The app is not configured.');
       set({ linkError: null });
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Nieprawidłowy e-mail lub hasło.' : error.message);
+      if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Incorrect e-mail or password.' : error.message);
     },
     signOut: async () => {
       await supabase?.auth.signOut();
       set({ status: 'signedOut', session: null, profile: null, passwordSetup: null });
     },
     setPassword: async (password) => {
-      if (!supabase) throw new Error('Aplikacja nie jest skonfigurowana.');
-      if (password.length < MIN_PASSWORD) throw new Error(`Hasło musi mieć co najmniej ${MIN_PASSWORD} znaków.`);
+      if (!supabase) throw new Error('The app is not configured.');
+      if (password.length < MIN_PASSWORD) throw new Error(`The password must be at least ${MIN_PASSWORD} characters long.`);
       const { error } = await supabase.auth.updateUser({ password });
       if (error) {
-        throw new Error(error.code === 'same_password' ? 'Nowe hasło musi się różnić od poprzedniego.' : `Nie udało się ustawić hasła: ${error.message}`);
+        throw new Error(error.code === 'same_password' ? 'The new password must be different from the previous one.' : `Could not set the password: ${error.message}`);
       }
       set({ passwordSetup: null });
     },
     requestReset: async (email) => {
-      if (!supabase) throw new Error('Aplikacja nie jest skonfigurowana.');
+      if (!supabase) throw new Error('The app is not configured.');
       await api('/api/auth/recover', { method: 'POST', body: { email } });
     },
   };

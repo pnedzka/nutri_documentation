@@ -16,36 +16,36 @@ export function AccountPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (password.length < 10) return toast.error('Hasło musi mieć co najmniej 10 znaków.');
-    if (password !== repeat) return toast.error('Hasła się różnią.');
+    if (password.length < 10) return toast.error('The password must be at least 10 characters long.');
+    if (password !== repeat) return toast.error("The passwords don't match.");
     setBusy(true);
     const { error } = (await supabase?.auth.updateUser({ password })) ?? { error: null };
     setBusy(false);
-    if (error) return toast.error('Nie udało się zmienić hasła', error.message);
+    if (error) return toast.error('Could not change the password', error.message);
     setPassword('');
     setRepeat('');
-    toast.success('Hasło zostało zmienione');
+    toast.success('Password changed');
   };
 
   return (
     <div className="max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Moje konto</h1>
+        <h1 className="text-2xl font-bold text-gray-900">My account</h1>
         <p className="text-sm text-gray-500 mt-1">
           {profile?.full_name ? `${profile.full_name} · ` : ''}
-          {profile?.email} · {profile?.role === 'admin' ? 'administrator' : 'użytkownik'}
+          {profile?.email} · {profile?.role === 'admin' ? 'administrator' : 'user'}
         </p>
       </div>
       <Card>
         <CardHeader className="flex items-center gap-2">
           <KeyRound size={16} className="text-[#CC1F1F]" />
-          <h2 className="text-sm font-semibold text-gray-900">Zmiana hasła</h2>
+          <h2 className="text-sm font-semibold text-gray-900">Change password</h2>
         </CardHeader>
         <CardBody>
           <form onSubmit={submit} className="space-y-4">
-            <Input label="Nowe hasło" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            <Input label="Powtórz hasło" type="password" autoComplete="new-password" value={repeat} onChange={(e) => setRepeat(e.target.value)} />
-            <Button type="submit" isLoading={busy}>Zmień hasło</Button>
+            <Input label="New password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input label="Repeat password" type="password" autoComplete="new-password" value={repeat} onChange={(e) => setRepeat(e.target.value)} />
+            <Button type="submit" isLoading={busy}>Change password</Button>
           </form>
         </CardBody>
       </Card>

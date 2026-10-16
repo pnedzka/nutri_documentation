@@ -25,7 +25,7 @@ function ToastItem({ toast }: { toast: ToastMessage }) {
       </div>
       <button
         onClick={() => removeToast(toast.id)}
-        aria-label="Zamknij powiadomienie"
+        aria-label="Close notification"
         className="shrink-0 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
       >
         <X size={14} />

@@ -56,14 +56,14 @@ export function PATCH(request: Request): Promise<Response> {
     const body = await readJson<PatchBody>(request);
 
     if (body.action === 'reopen') {
-      if (row.status !== 'done') throw new HttpError(409, 'Dokument nie jest zakończony.');
+      if (row.status !== 'done') throw new HttpError(409, 'The document is not done.');
       const saved = await saveDocument(row, { status: 'review' });
       await logEvent(row.id, profile.id, 'reopen');
       return json({ document: toPublic(saved) });
     }
 
-    if (row.status !== 'review') throw new HttpError(409, 'Dokument można zmieniać tylko na etapie przeglądu.');
-    if (!row.extraction || !row.warnings) throw new HttpError(409, 'Dokument nie został jeszcze przetworzony.');
+    if (row.status !== 'review') throw new HttpError(409, 'The document can only be changed while it is in review.');
+    if (!row.extraction || !row.warnings) throw new HttpError(409, 'The document has not been processed yet.');
 
     if (body.action === 'products') {
       const changes = { np_product_name: clean(body.npProductName, 200), np_product_code: clean(body.npProductCode, 100) };
@@ -76,23 +76,23 @@ export function PATCH(request: Request): Promise<Response> {
     switch (body.action) {
       case 'ack':
         if (!Array.isArray(body.warningIds) || !body.warningIds.length || !body.warningIds.every((id) => typeof id === 'string'))
-          throw new HttpError(400, 'Nieprawidłowe ostrzeżenia.');
+          throw new HttpError(400, 'Invalid warnings.');
         break;
       case 'edit':
-        if (!isRef(body.ref) || typeof body.text !== 'string') throw new HttpError(400, 'Nieprawidłowa poprawka.');
+        if (!isRef(body.ref) || typeof body.text !== 'string') throw new HttpError(400, 'Invalid correction.');
         break;
       case 'restore':
-        if (!isRef(body.ref)) throw new HttpError(400, 'Nieprawidłowy fragment.');
+        if (!isRef(body.ref)) throw new HttpError(400, 'Invalid fragment.');
         break;
       case 'redact':
-        if (!isRef(body.ref) || !REDACTION_CATEGORIES.includes(body.category)) throw new HttpError(400, 'Nieprawidłowy fragment.');
+        if (!isRef(body.ref) || !REDACTION_CATEGORIES.includes(body.category)) throw new HttpError(400, 'Invalid fragment.');
         break;
       case 'insert':
         if ((body.afterBlockId !== null && typeof body.afterBlockId !== 'string') || typeof body.text !== 'string' || !Number.isFinite(body.page))
-          throw new HttpError(400, 'Nieprawidłowy tekst do dodania.');
+          throw new HttpError(400, 'Invalid text to add.');
         break;
       default:
-        throw new HttpError(400, 'Nieznana operacja.');
+        throw new HttpError(400, 'Unknown operation.');
     }
 
     try {
@@ -112,9 +112,9 @@ export function DELETE(request: Request): Promise<Response> {
     const profile = await requireUser(request);
     const row = await loadDocument(documentId(request), profile);
     if (profile.role !== 'admin' && row.status === 'done') {
-      throw new HttpError(403, 'Zakończony dokument może usunąć tylko administrator.');
+      throw new HttpError(403, 'Only an administrator can delete a document that is done.');
     }
-    if (row.status === 'processing') throw new HttpError(409, 'Poczekaj, aż przetwarzanie się zakończy.');
+    if (row.status === 'processing') throw new HttpError(409, 'Wait until processing has finished.');
     await db().storage.from(ORIGINALS).remove([row.original_path]);
     if (row.output_path) await db().storage.from(OUTPUTS).remove([row.output_path]);
     const { error } = await db().from('documents').delete().eq('id', row.id);

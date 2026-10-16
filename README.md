@@ -8,9 +8,11 @@ Aplikacja do neutralizacji dokumentów dostawców dla Nutri Partners. Pracownik 
 
 ## Funkcje
 
+Interfejs aplikacji, komunikaty, ostrzeżenia i e-maile są po angielsku (system „Document Neutralization”).
+
 - **Logowanie** e-mailem i hasłem. Konta zakłada administrator, publicznej rejestracji nie ma.
   - Nowa osoba dostaje e-mail z zaproszeniem i sama ustawia hasło przez link.
-  - Zapomniane hasło można odzyskać linkiem e-mailowym („Nie pamiętasz hasła?”).
+  - Zapomniane hasło można odzyskać linkiem e-mailowym ("Forgot password?").
 - **Wejście:** PDF z warstwą tekstową, skany PDF, zdjęcia (JPG/PNG) i dokumenty Word (DOCX), do 20 MB.
 - **Neutralizacja.** Usuwane są:
   - dane identyfikujące dostawcę: nazwa, adresy, NIP, kontakty, osoby, numery dokumentów i certyfikatów dostawcy,
@@ -38,9 +40,9 @@ Dokumenty są wiążące, dlatego treść przepisywana przez model (Claude) jest
    - Fragmenty do usunięcia tylko oznacza, a nie kasuje. Usunięcie następuje dopiero przy generowaniu PDF, więc każdą decyzję widać na ekranie przeglądu.
    - Niepewne znaki oznacza jako nieczytelne zamiast zgadywać.
 2. **Porównanie ze źródłem** (PDF z warstwą tekstową, DOCX). Każdy fragment wyniku musi występować w tekście dokumentu źródłowego w tej samej kolejności.
-   - Zmieniona liczba, inny znak (`<` / `≤`) albo przestawione słowo (np. „min.” zamiast „max.”) daje ostrzeżenie **„Niezgodne ze źródłem”**.
-   - Każda linia źródła musi się znaleźć w wyniku: zachowana albo oznaczona do usunięcia. Brakująca liczba lub treść daje ostrzeżenie **„Możliwe pominięcie”**.
-3. **Skany i zdjęcia** (bez warstwy tekstowej). Dokument jest odczytywany drugi raz, niezależnie. Liczby, symbole i słowa zmieniające sens, których drugi odczyt nie potwierdza, dostają ostrzeżenie **„Niepewny odczyt”**.
+   - Zmieniona liczba, inny znak (`<` / `≤`) albo przestawione słowo (np. „min.” zamiast „max.”) daje ostrzeżenie **"Not in source"**.
+   - Każda linia źródła musi się znaleźć w wyniku: zachowana albo oznaczona do usunięcia. Brakująca liczba lub treść daje ostrzeżenie **"Possibly omitted"**.
+3. **Skany i zdjęcia** (bez warstwy tekstowej). Dokument jest odczytywany drugi raz, niezależnie. Liczby, symbole i słowa zmieniające sens, których drugi odczyt nie potwierdza, dostają ostrzeżenie **"Uncertain reading"**.
 4. **Pozostałe ostrzeżenia:**
    - miejsca nieczytelne,
    - grafiki, które nie są przenoszone do PDF,
@@ -77,7 +79,7 @@ Kod: `shared/verify.ts` (sprawdzanie), `shared/printable.ts` (co trafia na papie
 3. **Deployments → Redeploy.** Przy buildzie skrypt `scripts/migrate.mjs` sam założy tabele i prywatne buckety (`db/schema.sql`). Skrypt można bezpiecznie uruchamiać wielokrotnie.
 4. **Pierwsze konto.** Supabase → **Authentication → Users → Add user** (e-mail z `ADMIN_EMAILS`, hasło, „Auto Confirm User”).
    - Po zalogowaniu ta osoba jest administratorem.
-   - Kolejne konta zakłada już w aplikacji, w zakładce **Użytkownicy** (zaproszenia e-mailem: zob. niżej).
+   - Kolejne konta zakłada już w aplikacji, w zakładce **Users** (zaproszenia e-mailem: zob. niżej).
 5. W Supabase → **Authentication → Sign In / Providers** wyłącz „Allow new users to sign up”. Konta zakłada tylko administrator.
 
 ## Zaproszenia i reset hasła e-mailem
@@ -100,15 +102,15 @@ Konfiguracja:
 
    Po zmianie zmiennych wykonaj ponowne wdrożenie.
 
-W zakładce **Użytkownicy**:
-- **Status** konta: „Zaproszone” (link jeszcze nieużyty), „Aktywne” albo „Bez logowania”.
-- **„Wyślij link”** wysyła ponownie zaproszenie albo, dla aktywnego konta, link do zmiany hasła.
-- **„Usuń”** usuwa konto po potwierdzeniu. Ograniczenia:
+W zakładce **Users**:
+- **Status** konta: "Invited" (link jeszcze nieużyty), "Active" albo "Never signed in".
+- **"Send link"** wysyła ponownie zaproszenie albo, dla aktywnego konta, link do zmiany hasła.
+- **"Delete"** usuwa konto po potwierdzeniu. Ograniczenia:
   - nie można usunąć własnego konta,
   - nie można usunąć konta, które ma dokumenty albo występuje w historii zmian dokumentów, bo dokumenty są wiążące i ich historia musi zostać zachowana. Takiemu kontu można np. ustawić nowe hasło i go nie używać.
-- Bez wysyłki e-maili można odznaczyć „Wyślij zaproszenie e-mailem” i przekazać hasło startowe samodzielnie.
+- Bez wysyłki e-maili można odznaczyć "Send an e-mail invitation" i przekazać hasło startowe samodzielnie.
 
-**„Nie pamiętasz hasła?”** na ekranie logowania wysyła link do ustawienia hasła. Działa także dla zaproszonych osób, którym wygasł link z zaproszenia. Odpowiedź aplikacji jest zawsze taka sama, bez względu na to, czy konto istnieje. Na jedno konto wysyłany jest najwyżej jeden e-mail na minutę.
+**"Forgot password?"** na ekranie logowania wysyła link do ustawienia hasła. Działa także dla zaproszonych osób, którym wygasł link z zaproszenia. Odpowiedź aplikacji jest zawsze taka sama, bez względu na to, czy konto istnieje. Na jedno konto wysyłany jest najwyżej jeden e-mail na minutę.
 
 Limit czasu funkcji to 300 s (`vercel.json`). Długie PDF-y są dzielone na części po 3 strony, czytane równolegle.
 
