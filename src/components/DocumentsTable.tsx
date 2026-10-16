@@ -8,14 +8,14 @@ function Warnings({ d }: { d: DocumentSummary }) {
   if (d.status === 'review' && d.open_warnings > 0) {
     return (
       <span className="inline-flex items-center gap-1 text-amber-700">
-        <AlertTriangle size={14} /> {d.open_warnings} do rozpatrzenia
+        <AlertTriangle size={14} /> {d.open_warnings} to review
       </span>
     );
   }
   if (d.status === 'review' || d.status === 'done') {
     return (
       <span className="inline-flex items-center gap-1 text-green-700">
-        <CheckCircle2 size={14} /> rozpatrzone ({d.total_warnings})
+        <CheckCircle2 size={14} /> reviewed ({d.total_warnings})
       </span>
     );
   }
@@ -24,7 +24,7 @@ function Warnings({ d }: { d: DocumentSummary }) {
 
 export function DocumentsTable({ documents, showOwner = false }: { documents: DocumentSummary[]; showOwner?: boolean }) {
   if (!documents.length) {
-    return <p className="px-6 py-10 text-center text-sm text-gray-500">Brak dokumentów.</p>;
+    return <p className="px-6 py-10 text-center text-sm text-gray-500">No documents.</p>;
   }
   // The layout follows the width of the box, not of the screen: the list also sits in a narrow column next to the
   // upload form on laptops. Below 768px of its own width it shows one card per document instead of the table.
@@ -55,12 +55,12 @@ export function DocumentsTable({ documents, showOwner = false }: { documents: Do
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100">
-              <th className="px-6 py-3">Plik</th>
-              {showOwner && <th className="px-4 py-3">Właściciel</th>}
-              <th className="px-4 py-3">Wgrano</th>
+              <th className="px-6 py-3">File</th>
+              {showOwner && <th className="px-4 py-3">Owner</th>}
+              <th className="px-4 py-3">Uploaded</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Ostrzeżenia</th>
-              <th className="px-4 py-3" aria-label="Otwórz" />
+              <th className="px-4 py-3">Warnings</th>
+              <th className="px-4 py-3" aria-label="Open" />
             </tr>
           </thead>
           <tbody>
@@ -88,7 +88,7 @@ export function DocumentsTable({ documents, showOwner = false }: { documents: Do
                   <Warnings d={d} />
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <Link to={`/dokumenty/${d.id}`} className="inline-flex text-gray-400 hover:text-gray-700" aria-label="Otwórz dokument">
+                  <Link to={`/dokumenty/${d.id}`} className="inline-flex text-gray-400 hover:text-gray-700" aria-label="Open document">
                     <ChevronRight size={18} />
                   </Link>
                 </td>

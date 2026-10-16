@@ -16,7 +16,7 @@ function Spinner() {
   return (
     <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">
       <span className="animate-spin h-5 w-5 mr-3 rounded-full border-2 border-gray-300 border-t-[#CC1F1F]" />
-      Ładowanie…
+      Loading…
     </div>
   );
 }

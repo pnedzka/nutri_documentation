@@ -12,7 +12,7 @@ export type AccountLinkKind = 'invite' | 'recovery';
 
 export const LINK_VALIDITY_HOURS: Record<AccountLinkKind, number> = { invite: 24, recovery: 1 };
 
-export const EXPIRED_LINK = 'Link wygasł albo został już użyty. Poproś administratora o nowy albo użyj „Nie pamiętasz hasła?”.';
+export const EXPIRED_LINK = 'This link has expired or has already been used. Ask your administrator for a new one or use "Forgot password?".';
 
 const sha256 = (token: string) => createHash('sha256').update(token).digest('hex');
 
@@ -61,7 +61,7 @@ export async function redeemAccountLink(token: string): Promise<{ tokenHash: str
   const tokenHash = generated.data.properties?.hashed_token;
   if (generated.error || !tokenHash) {
     console.error('[links] generateLink', generated.error);
-    throw new HttpError(500, 'Nie udało się otworzyć linku. Spróbuj ponownie albo poproś o nowy.');
+    throw new HttpError(500, 'Could not open the link. Try again or ask for a new one.');
   }
   return { tokenHash, type };
 }

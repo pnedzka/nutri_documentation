@@ -9,9 +9,9 @@ const extraction = (): Extraction => ({
   blocks: [
     {
       id: 'b1', type: 'key_value', page: 1, level: null, runs: null, items: null, header: null, body: null,
-      rows: [{ key: [{ kind: 'text', text: 'Lead', category: null, reason: null }], value: [{ kind: 'illegible', text: '0.0', category: null, reason: 'rozmazane' }] }],
+      rows: [{ key: [{ kind: 'text', text: 'Lead', category: null, reason: null }], value: [{ kind: 'illegible', text: '0.0', category: null, reason: 'blurred' }] }],
     },
-    { id: 'b2', type: 'paragraph', page: 1, level: null, items: null, rows: null, header: null, body: null, runs: [{ kind: 'redact', text: 'ACME GmbH', category: 'supplier_identity', reason: 'dostawca' }] },
+    { id: 'b2', type: 'paragraph', page: 1, level: null, items: null, rows: null, header: null, body: null, runs: [{ kind: 'redact', text: 'ACME GmbH', category: 'supplier_identity', reason: 'supplier' }] },
   ],
 });
 

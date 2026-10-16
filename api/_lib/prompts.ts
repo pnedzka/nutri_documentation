@@ -89,11 +89,11 @@ export const TRANSCRIPTION_SYSTEM = `You transcribe supplier documents (product 
 - Keep the reading order of the source.
 
 # Illegible content
-- If any character cannot be read with certainty (blurred, cut off, covered by a stamp, low resolution, handwriting), do not guess. Emit a run with kind "illegible", put in "text" only the characters you can read with certainty (may be empty) and describe the problem briefly in Polish in "reason" (e.g. "rozmazana ostatnia cyfra", "zasłonięte pieczątką").
+- If any character cannot be read with certainty (blurred, cut off, covered by a stamp, low resolution, handwriting), do not guess. Emit a run with kind "illegible", put in "text" only the characters you can read with certainty (may be empty) and describe the problem briefly in English in "reason" (e.g. "blurred last digit", "covered by a stamp").
 - A value that is only partly legible is still an illegible run; never complete it from context.
 
 # Neutralization: mark (do not delete) supplier-specific content
-Split text into runs so that each removable fragment is its own run with kind "redact", the exact original text in "text", a category and a short Polish reason:
+Split text into runs so that each removable fragment is its own run with kind "redact", the exact original text in "text", a category and a short English reason:
 - supplier_identity: supplier/manufacturer company names, logos' text, addresses, tax and registration numbers (VAT/NIP, KRS, DUNS…), phone/fax numbers, e-mails, websites, names and signatures of the supplier's employees, the supplier's document numbers and form codes tied to the supplier's quality system, certificate numbers issued to the supplier.
 - trade_name: the supplier's brand or trade name of the product (e.g. "Lactoprot SMP Premium"). The generic product description (e.g. "Skimmed milk powder", "Sodium caseinate") is NOT removed.
 - supplier_code: the supplier's internal article/product/material codes.
@@ -114,7 +114,7 @@ For illegible runs, "en" covers only the readable part. Never add, explain or co
 Use blocks: heading (level 1–3), paragraph, key_value (label → value pairs, e.g. parameter tables with two columns; also a grid with several "label: value" pairs per row, e.g. a certificate's product, batch and date fields – one key_value row per pair, in reading order), table (header rows and body rows; every cell is a list of runs; keep empty cells as empty lists), list (one entry per item, without the bullet character), note (footnotes, small print), figure (charts, photos, drawings: put only a printed caption in "runs" if there is one, never describe the image).
 Set unused fields to null. "page" is the 1-based page of the source where the block starts. Give blocks ids "b1", "b2", … in order.
 Runs are concatenated without separators, so keep the spaces between words inside the run texts.
-Put in "notes" (in Polish) anything you could not represent: stamps, signatures, handwritten additions, rotated or overlapping text, content you are unsure belongs to the document. Leave it empty when there is nothing to report.
+Put in "notes" (in English) anything you could not represent: stamps, signatures, handwritten additions, rotated or overlapping text, content you are unsure belongs to the document. Leave it empty when there is nothing to report.
 "language" is the ISO 639-1 code of the document's main language. "page_count" is the number of pages you received.`;
 
 export const READING_SYSTEM = `You read scanned documents and photos character by character. Output the complete text of every page exactly as printed, in reading order, one line of the source per line of output: no translation, no corrections, no summaries, no formatting, no commentary. Keep every number, unit and symbol exactly as printed. Where a character cannot be read with certainty write "?" in its place instead of guessing. "page" is 1-based.`;

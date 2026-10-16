@@ -14,22 +14,22 @@ export function POST(request: Request): Promise<Response> {
   return handle(async () => {
     const profile = await requireUser(request);
     const row = await loadDocument(documentId(request), profile);
-    if (row.status !== 'review' || !row.extraction) throw new HttpError(409, 'Dokument nie jest gotowy do wygenerowania.');
+    if (row.status !== 'review' || !row.extraction) throw new HttpError(409, 'The document is not ready to be generated.');
     const open = openWarnings(row.warnings);
-    if (open > 0) throw new HttpError(409, `Najpierw rozpatrz wszystkie ostrzeżenia (pozostało: ${open}).`);
+    if (open > 0) throw new HttpError(409, `Resolve all warnings first (${open} left).`);
 
     const printable = toPrintable(row.extraction, { productName: row.np_product_name, productCode: row.np_product_code });
-    if (!printable.blocks.length) throw new HttpError(409, 'Po neutralizacji dokument nie zawiera żadnej treści.');
+    if (!printable.blocks.length) throw new HttpError(409, 'After neutralization the document has no content.');
     const missing = missingGlyphs(printable);
     if (missing.length) {
-      throw new HttpError(422, `PDF nie może zawierać znaków: ${missing.slice(0, 20).join(' ')} (brak czcionki). Zgłoś administratorowi.`);
+      throw new HttpError(422, `The PDF cannot contain these characters: ${missing.slice(0, 20).join(' ')} (no font for them). Report this to your administrator.`);
     }
     const pdf = await renderPdf({ printable, reference: row.id.slice(0, 8).toUpperCase() });
     // The PDF is read back before it is stored: a binding document must never lose a character on the way to paper.
     const lost = await lostCharacters(pdf, printable);
     if (lost.length) {
       console.error('[finalize] characters lost in the PDF', row.id, lost);
-      throw new HttpError(422, `W wygenerowanym PDF brakuje znaków: ${lost.slice(0, 20).join(' ')}. Plik nie został zapisany. Zgłoś administratorowi.`);
+      throw new HttpError(422, `Characters are missing from the generated PDF: ${lost.slice(0, 20).join(' ')}. The file was not saved. Report this to your administrator.`);
     }
 
     const path = `${row.owner_id}/${row.id}/${Date.now()}.pdf`;

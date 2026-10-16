@@ -9,7 +9,7 @@ import { HttpError, handle, json, readJson } from '../_lib/http.js';
 export function POST(request: Request): Promise<Response> {
   return handle(async () => {
     const body = await readJson<{ token?: unknown }>(request);
-    if (typeof body.token !== 'string' || !/^[\w-]{20,100}$/.test(body.token)) throw new HttpError(400, 'Nieprawidłowy link.');
+    if (typeof body.token !== 'string' || !/^[\w-]{20,100}$/.test(body.token)) throw new HttpError(400, 'Invalid link.');
     return json(await redeemAccountLink(body.token));
   });
 }

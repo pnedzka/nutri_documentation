@@ -13,10 +13,10 @@ import {
 import { runDomId, runKey } from './refs';
 
 const EN_HOW_LABELS: Record<string, string> = {
-  english_part: 'Część angielska tekstu dwujęzycznego',
-  corrected: 'Poprawiona pisownia',
-  translated: 'Przetłumaczone',
-  edited: 'Poprawione ręcznie',
+  english_part: 'English part of a bilingual text',
+  corrected: 'Spelling corrected',
+  translated: 'Translated',
+  edited: 'Edited by hand',
 };
 
 interface Props {
@@ -45,8 +45,8 @@ export function ExtractionView({ extraction, warnings, selected, onSelect, repla
       if (run.kind === 'illegible') {
         const readable = printedText(run).trim();
         return (
-          <span key={i} {...common} className={`${base} bg-red-100 text-red-800 font-semibold px-0.5`} title={run.reason ?? 'Nieczytelne'}>
-            [NIECZYTELNE{readable ? `: ${readable}…` : ''}]
+          <span key={i} {...common} className={`${base} bg-red-100 text-red-800 font-semibold px-0.5`} title={run.reason ?? 'Illegible'}>
+            [ILLEGIBLE{readable ? `: ${readable}…` : ''}]
           </span>
         );
       }
@@ -54,7 +54,7 @@ export function ExtractionView({ extraction, warnings, selected, onSelect, repla
         const replacement =
           run.category === 'trade_name' ? replacements.productName : run.category === 'supplier_code' ? replacements.productCode : null;
         return (
-          <span key={i} {...common} className={`${base} ${warn}`} title={`${REDACTION_LABELS[run.category ?? 'supplier_identity']} – usunięte${run.reason ? `: ${run.reason}` : ''}`}>
+          <span key={i} {...common} className={`${base} ${warn}`} title={`${REDACTION_LABELS[run.category ?? 'supplier_identity']} – removed${run.reason ? `: ${run.reason}` : ''}`}>
             <span className="line-through decoration-gray-500 text-gray-400 bg-gray-100">{run.text}</span>
             {replacement && <span className="ml-1 rounded bg-green-100 px-1 text-green-800 no-underline">{replacement}</span>}
           </span>
@@ -62,7 +62,7 @@ export function ExtractionView({ extraction, warnings, selected, onSelect, repla
       }
       if (run.en_how === 'duplicate') {
         return (
-          <span key={i} {...common} className={`${base} ${warn} whitespace-pre-wrap text-gray-400 line-through decoration-dotted`} title="Pominięte w PDF: powtórzenie tekstu angielskiego obok">
+          <span key={i} {...common} className={`${base} ${warn} whitespace-pre-wrap text-gray-400 line-through decoration-dotted`} title="Omitted from the PDF: repeats the English text next to it">
             {run.text}
           </span>
         );
@@ -73,7 +73,7 @@ export function ExtractionView({ extraction, warnings, selected, onSelect, repla
           key={i}
           {...common}
           className={`${base} ${warn} whitespace-pre-wrap ${changed && !warn ? 'underline decoration-dotted decoration-sky-500 underline-offset-2' : ''}`}
-          title={changed ? `${EN_HOW_LABELS[run.en_how!]}. Oryginał: ${run.text}` : undefined}
+          title={changed ? `${EN_HOW_LABELS[run.en_how!]}. Original: ${run.text}` : undefined}
         >
           {printedText(run)}
         </span>
@@ -90,7 +90,7 @@ export function ExtractionView({ extraction, warnings, selected, onSelect, repla
           <Fragment key={block.id}>
             {pageBreak && (
               <div className="flex items-center gap-2 pt-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                <span>Strona {block.page}</span>
+                <span>Page {block.page}</span>
                 <span className="h-px flex-1 bg-gray-100" />
               </div>
             )}
@@ -116,8 +116,8 @@ export function ExtractionView({ extraction, warnings, selected, onSelect, repla
           <div className="flex items-start gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-600">
             <ImageOff size={14} className="mt-0.5 shrink-0" />
             <span>
-              Grafika ze str. {block.page} – nie jest przenoszona do wyniku.
-              {block.runs?.length ? <> Podpis: {runs(block, [], block.runs)}</> : null}
+              Graphic on p. {block.page} – not carried over to the output.
+              {block.runs?.length ? <> Caption: {runs(block, [], block.runs)}</> : null}
             </span>
           </div>
         );

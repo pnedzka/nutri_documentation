@@ -28,19 +28,19 @@ describe('englishWarnings', () => {
     const w = kinds(doc([en('产品名称：\nProduct name：', 'english_part', 'Product description:')]));
     expect(w).toHaveLength(1);
     expect(w[0][0]).toBe('english_check');
-    expect(w[0][1]).toContain('nie występuje w oryginale');
+    expect(w[0][1]).toContain('does not appear in the original');
   });
 
   it('asks to confirm every translation and spelling correction', () => {
     const w = kinds(doc([en('未检出', 'translated', 'Not detected')], [en('CERTIFICATE OF ANALAYSIS', 'corrected', 'CERTIFICATE OF ANALYSIS')]));
     expect(w.map((x) => x[0])).toEqual(['translated', 'english_check']);
-    expect(w[1][1]).toContain('ANALAYSIS” → „CERTIFICATE OF ANALYSIS');
+    expect(w[1][1]).toContain('ANALAYSIS" → "CERTIFICATE OF ANALYSIS');
   });
 
   it('flags translations that change numbers or symbols', () => {
     const w = kinds(doc([en('水分 ≤ 4,0 %', 'translated', 'Moisture < 4.0 %')]));
     expect(w.map((x) => x[0])).toEqual(['translated', 'english_check']);
-    expect(w[1][1]).toContain('brak: 4,0, ≤; dodane: 4.0, <');
+    expect(w[1][1]).toContain('missing: 4,0, ≤; added: 4.0, <');
   });
 
   it('accepts full-width symbols written in ASCII', () => {
@@ -50,8 +50,8 @@ describe('englishWarnings', () => {
   it('flags text that is printed but not in English', () => {
     const w = kinds(doc([en('水分', 'same')], [en('Wilgotność', 'translated', 'Wilgotność')]));
     expect(w.filter((x) => x[0] === 'english_check').map((x) => x[1])).toEqual([
-      'Tekst do druku zawiera znaki spoza alfabetu angielskiego: „水分”.',
-      'Tekst do druku zawiera znaki spoza alfabetu angielskiego: „Wilgotność”.',
+      'Text to print contains characters outside the English alphabet: "水分".',
+      'Text to print contains characters outside the English alphabet: "Wilgotność".',
     ]);
     expect(kinds(doc([en('Lead 0.1 µg/kg', 'same')]))).toEqual([]);
   });
@@ -60,10 +60,10 @@ describe('englishWarnings', () => {
     const ok = englishWarnings(doc([en('水分 4.0%\n', 'duplicate', ''), en('Moisture 4.0%', 'same')], [en('灰分', 'duplicate', ''), en('Ash', 'same')]));
     expect(ok).toHaveLength(1);
     expect(ok[0]).toMatchObject({ kind: 'english_check', ref: null });
-    expect(ok[0].message).toContain('Pominięto 2 fragmentów powtarzających tekst angielski obok (np. „水分 4.0%”, „灰分”)');
+    expect(ok[0].message).toContain('Skipped 2 fragments that repeat the English text next to them (e.g. "水分 4.0%", "灰分")');
     const lost = kinds(doc([en('水分 4.5%\n', 'duplicate', ''), en('Moisture 4.0%', 'same')]));
     expect(lost).toHaveLength(1);
-    expect(lost[0][1]).toContain('Wartości 4.5 nie występują');
+    expect(lost[0][1]).toContain('Value 4.5 does not appear');
   });
 
   it('accepts spacing corrections without a warning, but never a space change inside a number', () => {
@@ -72,7 +72,7 @@ describe('englishWarnings', () => {
     expect(kinds(doc([en('Expiry date:2028.03.29', 'corrected', 'Expiry date: 2028.03.29')]))).toEqual([]);
     const w = kinds(doc([en('Lead 1 0 ppm', 'corrected', 'Lead 10 ppm')]));
     expect(w.map((x) => x[0])).toEqual(['english_check']);
-    expect(w[0][1]).toContain('brak: 1, 0; dodane: 10');
+    expect(w[0][1]).toContain('missing: 1, 0; added: 10');
   });
 
   it('does not ask about a change of character form only', () => {

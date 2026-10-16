@@ -7,7 +7,7 @@
 
 export type AuthLink = { kind: 'invite' | 'recovery'; tokenHash?: string; linkToken?: string } | { kind: 'error'; message: string } | null;
 
-export const EXPIRED_LINK = 'Link wygasł albo został już użyty. Poproś administratora o nowy albo użyj „Nie pamiętasz hasła?”.';
+export const EXPIRED_LINK = 'This link has expired or has already been used. Ask your administrator for a new one or use "Forgot password?".';
 
 export function parseAuthLink(hash: string, search = ''): AuthLink {
   const fragment = new URLSearchParams(hash.replace(/^#/, ''));
@@ -17,7 +17,7 @@ export function parseAuthLink(hash: string, search = ''): AuthLink {
   if (error || errorCode) {
     if (errorCode === 'otp_expired' || error === 'access_denied') return { kind: 'error', message: EXPIRED_LINK };
     const description = fragment.get('error_description') ?? query.get('error_description');
-    return { kind: 'error', message: `Link jest nieprawidłowy${description ? ` (${description})` : ''}.` };
+    return { kind: 'error', message: `This link is invalid${description ? ` (${description})` : ''}.` };
   }
   const linkType = query.get('type');
   if (linkType === 'invite' || linkType === 'recovery') {

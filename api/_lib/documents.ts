@@ -25,7 +25,7 @@ export function canAccess(row: Pick<DocumentRow, 'owner_id'>, profile: Profile):
 export async function loadDocument(id: string, profile: Profile): Promise<DocumentRow> {
   const { data, error } = await db().from('documents').select(`${DOCUMENT_COLUMNS}, ${OWNER_JOIN}`).eq('id', id).maybeSingle();
   if (error) throw error;
-  if (!data || !canAccess(data as unknown as DocumentRow, profile)) throw new HttpError(404, 'Nie znaleziono dokumentu.');
+  if (!data || !canAccess(data as unknown as DocumentRow, profile)) throw new HttpError(404, 'Document not found.');
   return failIfStale(data as unknown as DocumentRow);
 }
 
@@ -33,7 +33,7 @@ export async function loadDocument(id: string, profile: Profile): Promise<Docume
 export async function failIfStale<T extends Pick<DocumentRow, 'id' | 'status' | 'processing_started_at' | 'error_message'>>(row: T): Promise<T> {
   if (row.status !== 'processing' || !row.processing_started_at) return row;
   if (Date.now() - new Date(row.processing_started_at).getTime() < PROCESSING_TIMEOUT_MS) return row;
-  const error_message = 'Przetwarzanie trwało zbyt długo i zostało przerwane. Spróbuj ponownie lub podziel dokument na mniejsze pliki.';
+  const error_message = 'Processing took too long and was stopped. Try again or split the document into smaller files.';
   await db().from('documents').update({ status: 'error', error_message }).eq('id', row.id).eq('status', 'processing');
   return { ...row, status: 'error', error_message };
 }
@@ -80,11 +80,11 @@ export async function saveDocument(row: DocumentRow, changes: Partial<DocumentRo
     .select(`${DOCUMENT_COLUMNS}, ${OWNER_JOIN}`)
     .maybeSingle();
   if (error) throw error;
-  if (!data) throw new HttpError(409, 'Dokument został w międzyczasie zmieniony. Odśwież stronę.');
+  if (!data) throw new HttpError(409, 'The document has been changed in the meantime. Refresh the page.');
   return data as unknown as DocumentRow;
 }
 
 export function downloadName(originalFilename: string): string {
-  const base = originalFilename.replace(/\.[^.]+$/, '').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'dokument';
+  const base = originalFilename.replace(/\.[^.]+$/, '').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'document';
   return `${base}_NutriPartners.pdf`;
 }

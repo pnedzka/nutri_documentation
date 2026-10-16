@@ -18,15 +18,15 @@ const KIND_STYLES: Record<WarningKind, string> = {
 };
 
 const KIND_HELP: Record<WarningKind, string> = {
-  illegible: 'Sprawdź w oryginale (lub u dostawcy). Jeśli znasz pewną wartość, kliknij „Pokaż” i popraw fragment; inaczej potwierdź – w PDF zostanie oznaczenie „NIECZYTELNE”.',
-  unverified: 'Tekst nie występuje w źródle. Porównaj z oryginałem i popraw fragment albo potwierdź, jeśli jest zgodny.',
-  uncertain: 'Dwa niezależne odczyty skanu dały różne wyniki. Porównaj z oryginałem i popraw lub potwierdź.',
-  possibly_omitted: 'Tej treści ze źródła nie ma w wyniku. Dodaj ją albo potwierdź, jeśli celowo jej nie przenosimy (np. dane dostawcy).',
-  possible_leak: 'Dane dostawcy mogą pozostać w tekście. Kliknij „Pokaż” i oznacz fragment do usunięcia albo potwierdź.',
-  translated: 'Tych fragmentów nie było po angielsku, więc zostały przetłumaczone. Porównaj tłumaczenie z oryginałem: popraw fragment („Pokaż”) albo potwierdź.',
-  english_check: 'Tekst w PDF różni się od oryginału: poprawiona pisownia, pominięte powtórzenie, inne liczby albo znaki spoza alfabetu angielskiego. Sprawdź i popraw albo potwierdź.',
-  figure_omitted: 'Grafiki nie są przenoszone. Upewnij się, że nie zawierają danych technicznych, których brakuje w tekście.',
-  model_note: 'Uwaga z odczytu dokumentu.',
+  illegible: 'Check the original (or ask the supplier). If you know the value for certain, click "Show" and correct the fragment; otherwise confirm – the PDF will show "ILLEGIBLE".',
+  unverified: 'This text does not appear in the source. Compare it with the original and correct the fragment, or confirm if it matches.',
+  uncertain: 'Two independent readings of the scan gave different results. Compare with the original and correct or confirm.',
+  possibly_omitted: 'This content from the source is missing from the result. Add it, or confirm if it is left out on purpose (e.g. supplier data).',
+  possible_leak: 'Supplier data may remain in the text. Click "Show" and mark the fragment for removal, or confirm.',
+  translated: 'These fragments were not in English, so they were translated. Compare the translation with the original: correct the fragment ("Show") or confirm.',
+  english_check: 'The text in the PDF differs from the original: corrected spelling, an omitted repetition, different numbers or characters outside the English alphabet. Check and correct, or confirm.',
+  figure_omitted: 'Graphics are not carried over. Make sure they contain no technical data that is missing from the text.',
+  model_note: 'Note from reading the document.',
 };
 
 const ORDER: WarningKind[] = ['unverified', 'illegible', 'uncertain', 'english_check', 'possibly_omitted', 'translated', 'possible_leak', 'figure_omitted', 'model_note'];
@@ -59,14 +59,14 @@ export function WarningsPanel({ warnings, extraction, editable, busy, onShow, on
         <div className="flex items-center gap-2">
           {open.length ? <AlertTriangle size={16} className="text-amber-600" /> : <CheckCircle2 size={16} className="text-green-600" />}
           <h2 className="text-sm font-semibold text-gray-900">
-            {open.length ? `Do rozpatrzenia: ${open.length}` : 'Wszystkie ostrzeżenia rozpatrzone'}
+            {open.length ? `To review: ${open.length}` : 'All warnings reviewed'}
             <span className="font-normal text-gray-500"> / {warnings.length}</span>
           </h2>
         </div>
         {warnings.length > open.length && (
           <label className="flex items-center gap-2 text-xs text-gray-600">
             <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} />
-            pokaż rozpatrzone
+            show reviewed
           </label>
         )}
       </CardHeader>
@@ -86,10 +86,10 @@ export function WarningsPanel({ warnings, extraction, editable, busy, onShow, on
                       className="text-xs text-gray-500 hover:text-gray-800 underline"
                       disabled={busy}
                       onClick={() => {
-                        if (confirm(`Potwierdzić ${openIds.length} ostrzeżeń typu „${WARNING_LABELS[kind]}”? Zrób to tylko po sprawdzeniu każdego z nich z oryginałem.`)) onAck(openIds);
+                        if (confirm(`Confirm ${openIds.length} "${WARNING_LABELS[kind]}" warnings? Only do this after checking each one against the original.`)) onAck(openIds);
                       }}
                     >
-                      Potwierdź wszystkie ({openIds.length})
+                      Confirm all ({openIds.length})
                     </button>
                   )}
                 </div>
@@ -98,7 +98,7 @@ export function WarningsPanel({ warnings, extraction, editable, busy, onShow, on
                   {group.map((w) => (
                     <li key={w.id} className={`rounded-lg border px-3 py-2 ${w.status === 'open' ? 'border-gray-200' : 'border-gray-100 bg-gray-50 opacity-70'}`}>
                       <p className="text-sm text-gray-800">
-                        {w.page ? <span className="mr-1 text-xs font-semibold text-gray-500">str. {w.page}</span> : null}
+                        {w.page ? <span className="mr-1 text-xs font-semibold text-gray-500">p. {w.page}</span> : null}
                         {w.message}
                       </p>
                       {w.excerpt && w.kind === 'possibly_omitted' && (
@@ -112,7 +112,7 @@ export function WarningsPanel({ warnings, extraction, editable, busy, onShow, on
                             value={inserting.text}
                             onChange={(e) => setInserting({ id: w.id, text: e.target.value })}
                           />
-                          <p className="text-xs text-gray-500">Tekst zostanie dodany jako akapit na końcu strony {w.page ?? ''}. Usuń z niego dane dostawcy.</p>
+                          <p className="text-xs text-gray-500">The text will be added as a paragraph at the end of page {w.page ?? ''}. Remove any supplier data from it.</p>
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -122,31 +122,31 @@ export function WarningsPanel({ warnings, extraction, editable, busy, onShow, on
                                 setInserting(null);
                               }}
                             >
-                              Dodaj do dokumentu
+                              Add to document
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setInserting(null)}>Anuluj</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setInserting(null)}>Cancel</Button>
                           </div>
                         </div>
                       )}
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         {w.ref && (
                           <Button size="sm" variant="secondary" onClick={() => onShow(w.ref!)}>
-                            <Eye size={14} /> Pokaż
+                            <Eye size={14} /> Show
                           </Button>
                         )}
                         {editable && w.status === 'open' && w.kind === 'possibly_omitted' && inserting?.id !== w.id && (
                           <Button size="sm" variant="secondary" onClick={() => setInserting({ id: w.id, text: w.excerpt ?? '' })}>
-                            <Plus size={14} /> Dodaj brakujący tekst
+                            <Plus size={14} /> Add missing text
                           </Button>
                         )}
                         {editable && w.status === 'open' && (
                           <Button size="sm" variant="secondary" disabled={busy} onClick={() => onAck([w.id])}>
-                            <Check size={14} /> Potwierdzam
+                            <Check size={14} /> Confirm
                           </Button>
                         )}
                         {w.status !== 'open' && (
                           <span className="text-xs text-gray-500">
-                            {w.status === 'edited' ? 'Poprawione' : 'Potwierdzone'} {formatDateTime(w.resolvedAt)}
+                            {w.status === 'edited' ? 'Corrected' : 'Confirmed'} {formatDateTime(w.resolvedAt)}
                           </span>
                         )}
                       </div>
