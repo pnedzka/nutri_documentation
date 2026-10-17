@@ -168,7 +168,14 @@ export interface Profile {
   email: string;
   full_name: string | null;
   role: 'user' | 'admin';
+  /** Apps of the Nutri Partners hub the person may use (`profiles.apps`); administrators may use every app. */
+  apps?: string[];
 }
+
+/** This app's id in `profiles.apps` (nutri_hub shared/access.ts). */
+export const APP_ID = 'neutralizer';
+
+export const canUseApp = (profile: Pick<Profile, 'role' | 'apps'>) => profile.role === 'admin' || (profile.apps ?? []).includes(APP_ID);
 
 export const ACCEPTED_TYPES: Record<string, string> = {
   'application/pdf': 'PDF',

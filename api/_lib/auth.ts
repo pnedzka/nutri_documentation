@@ -1,4 +1,4 @@
-import type { Profile } from '../../shared/schema.js';
+import { canUseApp, type Profile } from '../../shared/schema.js';
 import { HttpError } from './http.js';
 import { db } from './supabase.js';
 
@@ -8,8 +8,19 @@ const adminEmails = () =>
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
 
-/** The signed-in user (from the Supabase access token in the Authorization header) and their profile. */
+export const NO_ACCESS = "You don't have access to Document neutralizer. Ask your administrator to give you access in the Nutri Partners apps.";
+
+/**
+ * The signed-in user (from the Supabase access token in the Authorization header) and their profile. People
+ * without access to this app (`profiles.apps`, managed in the Nutri Partners hub) get 403.
+ */
 export async function requireUser(request: Request): Promise<Profile> {
+  const profile = await signedInProfile(request);
+  if (!canUseApp(profile)) throw new HttpError(403, NO_ACCESS);
+  return profile;
+}
+
+async function signedInProfile(request: Request): Promise<Profile> {
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) throw new HttpError(401, 'Please sign in.');
   const { data, error } = await db().auth.getUser(token);
@@ -18,7 +29,7 @@ export async function requireUser(request: Request): Promise<Profile> {
   const email = (user.email ?? '').toLowerCase();
   const shouldBeAdmin = adminEmails().includes(email);
 
-  const { data: existing, error: readError } = await db().from('profiles').select('id, email, full_name, role').eq('id', user.id).maybeSingle();
+  const { data: existing, error: readError } = await db().from('profiles').select('id, email, full_name, role, apps').eq('id', user.id).maybeSingle();
   if (readError) throw readError;
   if (existing) {
     // ADMIN_EMAILS only ever grants the role, so the first administrator can sign in without touching the database.
@@ -33,6 +44,7 @@ export async function requireUser(request: Request): Promise<Profile> {
     email,
     full_name: (user.user_metadata?.full_name as string | undefined) ?? null,
     role: shouldBeAdmin ? 'admin' : 'user',
+    apps: [],
   };
   const { error: insertError } = await db().from('profiles').upsert(profile);
   if (insertError) throw insertError;
