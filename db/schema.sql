@@ -13,6 +13,11 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
+-- Which apps of the Nutri Partners hub a person may use (ids from nutri_hub shared/access.ts); administrators may
+-- use every app. Managed in the hub. Accounts that existed before per-app access keep every app; new ones get none.
+alter table public.profiles add column if not exists apps text[] not null default array['neutralizer', 'signatures', 'owner-lookup', 'intranet']::text[];
+alter table public.profiles alter column apps set default '{}'::text[];
+
 create table if not exists public.documents (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.profiles (id) on delete restrict,

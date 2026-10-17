@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { FileText, LayoutGrid, LogOut, Shield, User as UserIcon, Users } from 'lucide-react';
+import { FileText, LayoutGrid, LogOut, Shield, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { HUB_URL } from '../lib/supabase';
 
@@ -68,7 +68,6 @@ export function Layout() {
         <nav className="max-w-[1400px] mx-auto px-4 sm:px-6 pb-3 flex gap-1 sm:gap-2" aria-label="Navigation">
           <Tab to="/" icon={<FileText size={16} />} label="My documents" short="Mine" />
           {isAdmin && <Tab to="/admin/dokumenty" icon={<Shield size={16} />} label="All documents" short="All" />}
-          {isAdmin && <Tab to="/admin/uzytkownicy" icon={<Users size={16} />} label="Users" short="Users" />}
         </nav>
       </header>
       <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">

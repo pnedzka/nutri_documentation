@@ -10,9 +10,9 @@ Aplikacja do neutralizacji dokumentów dostawców dla Nutri Partners. Pracownik 
 
 Interfejs aplikacji, komunikaty, ostrzeżenia i e-maile są po angielsku (system „Document Neutralization”).
 
-- **Logowanie** e-mailem i hasłem. Konta zakłada administrator, publicznej rejestracji nie ma.
-  - Nowa osoba dostaje e-mail z zaproszeniem i sama ustawia hasło przez link.
-  - Zapomniane hasło można odzyskać linkiem e-mailowym ("Forgot password?").
+- **Logowanie** e-mailem i hasłem, wspólnym kontem Nutri Partners. Publicznej rejestracji nie ma.
+  - **Konta, zaproszenia, reset hasła i uprawnienia** są tylko w centrum aplikacji: https://nutripartners.vercel.app → User management (repo `pnedzka/nutri_hub`). „Forgot password?” prowadzi tam.
+  - **Dostęp:** aplikacja wpuszcza administratorów i osoby, które mają `neutralizer` w `profiles.apps`. Pozostali po zalogowaniu widzą komunikat o braku dostępu i link do centrum.
 - **Wejście:** PDF z warstwą tekstową, skany PDF, zdjęcia (JPG/PNG) i dokumenty Word (DOCX), do 20 MB.
 - **Neutralizacja.** Usuwane są:
   - dane identyfikujące dostawcę: nazwa, adresy, NIP, kontakty, osoby, numery dokumentów i certyfikatów dostawcy,
@@ -29,7 +29,7 @@ Interfejs aplikacji, komunikaty, ostrzeżenia i e-maile są po angielsku (system
 - **Moje dokumenty:** lista własnych plików ze statusem i liczbą ostrzeżeń.
 - **Administrator:**
   - podgląd wszystkich dokumentów z oznaczeniem właściciela, filtrami po właścicielu i statusie oraz wyszukiwarką,
-  - zarządzanie kontami, w tym zmiana imienia i nazwiska każdej osoby (ołówek przy nazwie w zakładce Users). Nowa nazwa trafia do `profiles.full_name` i do metadanych konta Supabase, więc widzą ją wszystkie aplikacje ze wspólnej bazy użytkowników.
+  - konta zakłada i zmienia się w centrum aplikacji (User management).
 - **Historia zmian każdego dokumentu:** kto, kiedy i co potwierdził, poprawił, usunął lub przywrócił.
 - **Powrót do centrum aplikacji:** logo i przycisk „All apps” w nagłówku prowadzą do https://nutripartners.vercel.app (zmienna `VITE_HUB_URL`).
 
@@ -75,43 +75,18 @@ Kod: `shared/verify.ts` (sprawdzanie), `shared/printable.ts` (co trafia na papie
    - opcjonalnie `CLAUDE_MODEL`: domyślnie `claude-opus-5-5`.
    - opcjonalnie `CLAUDE_EFFORT`: domyślnie `medium`.
    - opcjonalnie `CLAUDE_FALLBACKS=off`: wyłącza automatyczne ponowienie na innym modelu, gdy Claude odmówi przetworzenia.
-   - `APP_URL`: adres aplikacji, do którego prowadzą linki w e-mailach, np. `https://nutridocumentation-nxdi.vercel.app`. Bez niego używany jest adres, z którego administrator wysłał zaproszenie.
-   - `RESEND_API_KEY`: klucz Resend do wysyłki zaproszeń i linków resetu hasła (zob. niżej).
 3. **Deployments → Redeploy.** Przy buildzie skrypt `scripts/migrate.mjs` sam założy tabele i prywatne buckety (`db/schema.sql`). Skrypt można bezpiecznie uruchamiać wielokrotnie.
 4. **Pierwsze konto.** Supabase → **Authentication → Users → Add user** (e-mail z `ADMIN_EMAILS`, hasło, „Auto Confirm User”).
    - Po zalogowaniu ta osoba jest administratorem.
-   - Kolejne konta zakłada już w aplikacji, w zakładce **Users** (zaproszenia e-mailem: zob. niżej).
+   - Kolejne konta zakłada w centrum aplikacji (https://nutripartners.vercel.app → User management).
 5. W Supabase → **Authentication → Sign In / Providers** wyłącz „Allow new users to sign up”. Konta zakłada tylko administrator.
 
-## Zaproszenia i reset hasła e-mailem
+## Konta i uprawnienia
 
-E-maile wysyła sama aplikacja przez API [Resend](https://resend.com), jako `Nutri APEX <no-reply@nutripartners.co>`. Nutri APEX to asystent AI Nutri Partners, a treść maila wyjaśnia, że zaproszenie dotyczy systemu „Neutralizacja dokumentów”. Treść jest w `api/_lib/mail.ts`.
-
-Link w mailu to jednorazowy token aplikacji:
-- zaproszenie jest ważne **24 godziny**, reset hasła **1 godzinę** (`api/_lib/accountLinks.ts`, tabela `account_links`),
-- każdy nowy link unieważnia poprzedni,
-- po kliknięciu aplikacja wymienia token na sesję Supabase.
-
-Ważność nie zależy od ustawień Supabase, a w Supabase nie trzeba konfigurować SMTP ani szablonów.
-
-Konfiguracja:
-1. **Resend:** domena `nutripartners.co` zweryfikowana (region EU) i klucz API z uprawnieniem „Sending access”.
-2. **Vercel → Settings → Environment Variables:**
-   - `RESEND_API_KEY`: klucz z Resend,
-   - opcjonalnie `MAIL_FROM`: nadawca, domyślnie `Nutri APEX <no-reply@nutripartners.co>`,
-   - `APP_URL`: adres aplikacji w linkach.
-
-   Po zmianie zmiennych wykonaj ponowne wdrożenie.
-
-W zakładce **Users**:
-- **Status** konta: "Invited" (link jeszcze nieużyty), "Active" albo "Never signed in".
-- **"Send link"** wysyła ponownie zaproszenie albo, dla aktywnego konta, link do zmiany hasła.
-- **"Delete"** usuwa konto po potwierdzeniu. Ograniczenia:
-  - nie można usunąć własnego konta,
-  - nie można usunąć konta, które ma dokumenty albo występuje w historii zmian dokumentów, bo dokumenty są wiążące i ich historia musi zostać zachowana. Takiemu kontu można np. ustawić nowe hasło i go nie używać.
-- Bez wysyłki e-maili można odznaczyć "Send an e-mail invitation" i przekazać hasło startowe samodzielnie.
-
-**"Forgot password?"** na ekranie logowania wysyła link do ustawienia hasła. Działa także dla zaproszonych osób, którym wygasł link z zaproszenia. Odpowiedź aplikacji jest zawsze taka sama, bez względu na to, czy konto istnieje. Na jedno konto wysyłany jest najwyżej jeden e-mail na minutę.
+Zakładanie kont, zaproszenia e-mailem, reset hasła, role, imiona i uprawnienia do aplikacji są w centrum aplikacji Nutri Partners (`pnedzka/nutri_hub`, https://nutripartners.vercel.app → User management). Neutralizator tylko loguje i sprawdza dostęp:
+- `profiles.apps` (`text[]`) musi zawierać `neutralizer`, chyba że osoba jest administratorem (`api/_lib/auth.ts`, `shared/schema.ts`);
+- kolumnę dodaje `db/schema.sql`: konta sprzed wprowadzenia uprawnień dostały wszystkie aplikacje, nowe konta nie mają żadnej, dopóki administrator ich nie wybierze;
+- `ADMIN_EMAILS` nadal nadaje rolę administratora przy logowaniu (pierwsze konto).
 
 Limit czasu funkcji to 300 s (`vercel.json`). Długie PDF-y są dzielone na części po 3 strony, czytane równolegle.
 
@@ -142,8 +117,8 @@ Sam `npm run dev` uruchamia tylko frontend (bez `/api`).
 
 | Ścieżka | Zawartość |
 | --- | --- |
-| `src/` | Frontend (React, Tailwind): logowanie, listy dokumentów, ekran przeglądu, użytkownicy |
-| `api/` | Funkcje Vercel: `documents`, `documents/[id]`, `documents/[id]/process`, `documents/[id]/finalize`, `admin/users`, `me` |
+| `src/` | Frontend (React, Tailwind): logowanie, listy dokumentów, ekran przeglądu, moje konto |
+| `api/` | Funkcje Vercel: `documents`, `documents/[id]`, `documents/[id]/process`, `documents/[id]/finalize`, `me` |
 | `api/_lib/` | Pipeline (Claude, odczyt PDF/DOCX), generator PDF, dostęp do bazy |
 | `shared/` | Kod wspólny: model danych, weryfikacja, neutralizacja, akcje przeglądu, dane papieru firmowego |
 | `db/schema.sql` | Schemat bazy (tabele, RLS, buckety) |
