@@ -31,6 +31,7 @@ Interfejs aplikacji, komunikaty, ostrzeżenia i e-maile są po angielsku (system
   - podgląd wszystkich dokumentów z oznaczeniem właściciela, filtrami po właścicielu i statusie oraz wyszukiwarką,
   - zarządzanie kontami.
 - **Historia zmian każdego dokumentu:** kto, kiedy i co potwierdził, poprawił, usunął lub przywrócił.
+- **Powrót do centrum aplikacji:** logo i przycisk „All apps” w nagłówku prowadzą do https://nutripartners.vercel.app (zmienna `VITE_HUB_URL`).
 
 ## Jak aplikacja pilnuje, żeby nic nie zostało zmyślone
 

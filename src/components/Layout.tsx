@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { FileText, LogOut, Shield, User as UserIcon, Users } from 'lucide-react';
+import { FileText, LayoutGrid, LogOut, Shield, User as UserIcon, Users } from 'lucide-react';
 import { useAuth } from '../lib/auth';
+import { HUB_URL } from '../lib/supabase';
 
 /** On phones the tabs share the width equally and use the short label. */
 function Tab({ to, icon, label, short }: { to: string; icon: React.ReactNode; label: string; short: string }) {
@@ -29,11 +30,22 @@ export function Layout() {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-30">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <img src="/logo.png" alt="Nutri Partners" width={150} height={29} className="shrink-0" />
+            <a href={HUB_URL} className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CC1F1F]" title="All Nutri Partners apps">
+              <img src="/logo.png" alt="Nutri Partners apps" width={150} height={29} />
+            </a>
             <span className="hidden md:block h-5 w-px bg-gray-200" aria-hidden="true" />
             <span className="hidden md:block text-sm font-medium text-gray-500 truncate">Document Neutralization</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <a
+              href={HUB_URL}
+              className="inline-flex items-center justify-center gap-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100"
+              aria-label="All apps"
+              title="All Nutri Partners apps"
+            >
+              <LayoutGrid size={16} />
+              <span className="hidden sm:inline">All apps</span>
+            </a>
             <NavLink
               to="/konto"
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100"
