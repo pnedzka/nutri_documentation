@@ -111,6 +111,11 @@ export function PATCH(request: Request): Promise<Response> {
       const { error } = await db().auth.admin.updateUserById(body.id, { password: body.password });
       if (error) throw new HttpError(400, 'Could not change the password.');
     }
+    if ('full_name' in changes) {
+      // The other apps of the shared user base (e.g. HubSpot owner lookup) read the name from the account's metadata.
+      const { error } = await db().auth.admin.updateUserById(body.id, { user_metadata: { full_name: changes.full_name } });
+      if (error) throw new HttpError(400, 'Could not change the name.');
+    }
     let sent: 'invite' | 'recovery' | undefined;
     if (body.sendLink === true) {
       const { data: found, error } = await db().auth.admin.getUserById(body.id);

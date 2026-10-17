@@ -29,7 +29,7 @@ Interfejs aplikacji, komunikaty, ostrzeżenia i e-maile są po angielsku (system
 - **Moje dokumenty:** lista własnych plików ze statusem i liczbą ostrzeżeń.
 - **Administrator:**
   - podgląd wszystkich dokumentów z oznaczeniem właściciela, filtrami po właścicielu i statusie oraz wyszukiwarką,
-  - zarządzanie kontami.
+  - zarządzanie kontami, w tym zmiana imienia i nazwiska każdej osoby (ołówek przy nazwie w zakładce Users). Nowa nazwa trafia do `profiles.full_name` i do metadanych konta Supabase, więc widzą ją wszystkie aplikacje ze wspólnej bazy użytkowników.
 - **Historia zmian każdego dokumentu:** kto, kiedy i co potwierdził, poprawił, usunął lub przywrócił.
 - **Powrót do centrum aplikacji:** logo i przycisk „All apps” w nagłówku prowadzą do https://nutripartners.vercel.app (zmienna `VITE_HUB_URL`).
 

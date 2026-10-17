@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Mail, Trash2, UserPlus, Users } from 'lucide-react';
+import { Check, Mail, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
 import type { Profile } from '../../shared/schema.ts';
 import { Button } from '../components/Button';
 import { Card, CardBody, CardHeader } from '../components/Card';
@@ -21,6 +21,62 @@ function randomPassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   const bytes = crypto.getRandomValues(new Uint32Array(14));
   return Array.from(bytes, (b) => chars[b % chars.length]).join('');
+}
+
+/** The account's name and e-mail; the pencil turns the name into a field (Enter saves, Escape cancels). */
+function UserName({ user, onSave }: { user: UserRow; onSave: (fullName: string) => Promise<boolean> }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (draft === null) return;
+    setSaving(true);
+    const saved = draft.trim() === (user.full_name ?? '') || (await onSave(draft));
+    setSaving(false);
+    if (saved) setDraft(null);
+  };
+
+  if (draft !== null) {
+    return (
+      <form onSubmit={save} className="flex items-center gap-1" onKeyDown={(e) => e.key === 'Escape' && setDraft(null)}>
+        <input
+          autoFocus
+          value={draft}
+          maxLength={200}
+          disabled={saving}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Full name"
+          aria-label={`Full name of ${user.email}`}
+          className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#CC1F1F] focus:border-transparent"
+        />
+        <button type="submit" disabled={saving} className="shrink-0 rounded-lg p-1.5 pointer-coarse:p-3 text-green-700 hover:bg-green-50" aria-label="Save name" title="Save">
+          <Check size={16} />
+        </button>
+        <button type="button" disabled={saving} onClick={() => setDraft(null)} className="shrink-0 rounded-lg p-1.5 pointer-coarse:p-3 text-gray-500 hover:bg-gray-100" aria-label="Cancel" title="Cancel">
+          <X size={16} />
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <div className="min-w-0">
+      <p className="flex items-center gap-1 font-medium text-gray-900 break-words">
+        <span className="min-w-0">{user.full_name || user.email}</span>
+        <button
+          type="button"
+          onClick={() => setDraft(user.full_name ?? '')}
+          className="shrink-0 rounded p-1 pointer-coarse:p-2.5 pointer-coarse:-my-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+          aria-label={`Edit the name of ${user.email}`}
+          title="Edit name"
+        >
+          <Pencil size={13} />
+        </button>
+      </p>
+      {user.full_name && <p className="text-xs text-gray-500 break-all">{user.email}</p>}
+    </div>
+  );
 }
 
 export function AdminUsersPage() {
@@ -68,10 +124,14 @@ export function AdminUsersPage() {
       await api('/api/admin/users', { method: 'PATCH', body: { id, ...body } });
       toast.success(done);
       await load();
+      return true;
     } catch (err) {
       toast.error('Could not save the change', (err as Error).message);
+      return false;
     }
   };
+
+  const rename = (u: UserRow) => (fullName: string) => update(u.id, { fullName }, 'Name changed');
 
   const sendLink = async (u: UserRow) => {
     const what = u.status === 'invited' ? 'the invitation again' : 'a link to set a new password';
@@ -208,8 +268,7 @@ export function AdminUsersPage() {
             {(users ?? []).map((u) => (
               <li key={u.id} className="px-4 py-4 space-y-3">
                 <div className="min-w-0">
-                  <p className="font-medium text-gray-900 break-words">{u.full_name || u.email}</p>
-                  {u.full_name && <p className="text-xs text-gray-500 break-all">{u.email}</p>}
+                  <UserName user={u} onSave={rename(u)} />
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
                     {statusPill(u)}
                     <span>Documents: {u.documents}</span>
@@ -236,8 +295,7 @@ export function AdminUsersPage() {
                 {(users ?? []).map((u) => (
                   <tr key={u.id} className="border-b border-gray-50 last:border-0">
                     <td className="px-6 py-3">
-                      <p className="font-medium text-gray-900">{u.full_name || u.email}</p>
-                      {u.full_name && <p className="text-xs text-gray-500">{u.email}</p>}
+                      <UserName user={u} onSave={rename(u)} />
                       <div className="mt-1">{statusPill(u)}</div>
                     </td>
                     <td className="px-4 py-3">{roleSelect(u)}</td>
