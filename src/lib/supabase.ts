@@ -16,3 +16,6 @@ if (authLink?.kind === 'error' || (authLink && ('tokenHash' in authLink || 'link
 }
 
 export const supabase: SupabaseClient | null = url && key ? createClient(url, key) : null;
+
+/** The Nutri Partners app hub: the logo and "All apps" in the header lead back there. */
+export const HUB_URL: string = (env.VITE_HUB_URL || 'https://nutripartners.vercel.app').replace(/\/+$/, '');
