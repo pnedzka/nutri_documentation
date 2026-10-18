@@ -60,6 +60,24 @@ Dokumenty są wiążące, dlatego treść przepisywana przez model (Claude) jest
 
 Kod: `shared/verify.ts` (sprawdzanie), `shared/printable.ts` (co trafia na papier), `api/_lib/prompts.ts` (instrukcje dla modelu).
 
+## Środowiska: dev i produkcja
+
+| | Produkcja | Dev |
+| --- | --- | --- |
+| Gałąź | `main` | `develop` (i gałęzie PR-ów) |
+| Adres | https://nutridocumentation-nxdi.vercel.app | https://nutridocumentation-nxdi-git-develop-nutri-partners.vercel.app (tylko po zalogowaniu do Vercela) |
+| Baza Supabase | `nutri-documentation` (`edzjkumjutffodfpasmf`) | `nutri-dev` (`xmcwvpgtaxlpswxghuqq`), osobne konta testowe |
+| Zmienne w Vercelu | Production | Preview |
+
+W Preview przeglądarka używa `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, a serwer `SUPABASE_URL` i `SUPABASE_SECRET_KEY` bazy dev; `VITE_HUB_URL` prowadzi do centrum dev. Dokumenty z dev trafiają do bazy i Storage `nutri-dev`.
+
+1. **Praca:** gałąź od `develop` i PR do `develop` (squash). Każdy PR ma własny podgląd; po scaleniu zmiana jest pod stałym adresem dev.
+2. **Wydanie na produkcję** (na polecenie właściciela): PR `develop` → `main`, scalany **merge commitem**, nie squashem, żeby gałęzie się nie rozjechały. Vercel wdraża `main` w ok. minutę. Cofnięcie: Vercel → Deployments → poprzednie wdrożenie → Instant Rollback.
+3. **Zmiany schematu bazy:** najpierw na `nutri-dev`, przy wydaniu ta sama zmiana na produkcji, przed scaleniem do `main`. Pełny schemat: `db/schema.sql` w `nutri_documentation`.
+4. **Pilna poprawka:** PR do `main`, potem `main` scalić do `develop`.
+
+Darmowa baza dev usypia się po 7 dniach bez użycia. Wybudzenie: Supabase → projekt `nutri-dev` → Restore (ok. minuty).
+
 ## Wdrożenie (Vercel, projekt `nutri_documentation-nxdi`)
 
 1. **Baza i pliki.** Vercel → projekt → **Storage** → **Create** → **Supabase**, a potem podłącz bazę do projektu dla wszystkich środowisk. Integracja sama doda zmienne `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` i `POSTGRES_URL_NON_POOLING`.
