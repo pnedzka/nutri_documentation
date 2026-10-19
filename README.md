@@ -105,6 +105,7 @@ Zakładanie kont, zaproszenia e-mailem, reset hasła, role, imiona i uprawnienia
 - `profiles.apps` (`text[]`) musi zawierać `neutralizer`, chyba że osoba jest administratorem (`api/_lib/auth.ts`, `shared/schema.ts`);
 - kolumnę dodaje `db/schema.sql`: konta sprzed wprowadzenia uprawnień dostały wszystkie aplikacje, nowe konta nie mają żadnej, dopóki administrator ich nie wybierze;
 - `ADMIN_EMAILS` nadal nadaje rolę administratora przy logowaniu (pierwsze konto).
+- **Jedno logowanie przez centrum** (od 18.10.2026): bez sesji aplikacja przekierowuje do centrum (`/sso`), które w razie potrzeby pokazuje logowanie i wraca na tę samą stronę z jednorazowym tokenem w adresie (`#sso=…`, `src/lib/sso.ts`). Wylogowanie tutaj wylogowuje też z centrum (`/logout`). Formularz logowania w aplikacji zostaje jako zapasowy, gdy token nie zadziała.
 
 Limit czasu funkcji to 300 s (`vercel.json`). Długie PDF-y są dzielone na części po 3 strony, czytane równolegle.
 
