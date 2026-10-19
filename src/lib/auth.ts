@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
 import type { Profile } from '../../shared/schema.ts';
-import { api } from './api';
+import { ApiError, api } from './api';
 import { supabase } from './supabase';
 import { signInViaHub, signOutOfHub, ssoDone, takeSsoToken } from './sso';
 
@@ -51,6 +51,13 @@ export const useAuth = create<AuthState>((set, get) => {
       const { profile } = await api<{ profile: Profile }>('/api/me');
       set({ status: 'signedIn', profile, error: null });
     } catch (e) {
+      // The session ended elsewhere (e.g. signed out in another app): drop it here, so the app gets a new one from
+      // the hub (or shows the sign-in form with this message).
+      if (e instanceof ApiError && e.status === 401) {
+        set({ profile: null, error: e.message });
+        await supabase!.auth.signOut({ scope: 'local' });
+        return;
+      }
       set({ status: 'error', error: (e as Error).message });
     }
   }
