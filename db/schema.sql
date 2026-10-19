@@ -1,9 +1,11 @@
--- Database schema of the document neutralization app. Idempotent: safe to run on every deployment
+-- Database schema of the document neutralization app and the shared tables of the Nutri Partners apps (sign-in,
+-- profiles, saved e-mail signatures). Idempotent: safe to run on every deployment
 -- (scripts/migrate.mjs runs it during the Vercel build).
 --
--- The app reads and writes through its own API with the service role and checks ownership there.
+-- The neutralizer reads and writes through its own API with the service role and checks ownership there.
 -- Row level security is enabled as a second line of defence: with the public (anon) key a signed-in user can read
--- only their own rows, an administrator all rows, and nobody can write.
+-- only their own rows, an administrator all rows, and nobody can write. The exception is email_signatures (below),
+-- which the signature generator reads and writes in the browser, guarded by row level security alone.
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
@@ -89,10 +91,75 @@ revoke all on function private.is_admin() from public;
 grant usage on schema private to authenticated;
 grant execute on function private.is_admin() to authenticated;
 
+-- Whether the signed-in person may use an app of the hub: administrators, or the app id in profiles.apps
+-- (nutri_hub shared/access.ts, canUse).
+create or replace function private.can_use_app(app text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = (select auth.uid()) and (role = 'admin' or app = any (apps))
+  );
+$$;
+
+revoke all on function private.can_use_app(text) from public;
+grant execute on function private.can_use_app(text) to authenticated;
+
+-- Saved e-mail signatures of the signature generator (pnedzka/nutri_signatures): one list shared by everyone who may
+-- use the generator. `overrides` holds only the form fields that differ from the defaults (SignatureData in that
+-- repo). The generator reads and writes this table in the browser with the signed-in user's session.
+create table if not exists public.email_signatures (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(btrim(name)) between 1 and 200),
+  overrides jsonb not null default '{}'::jsonb
+    check (jsonb_typeof(overrides) = 'object' and pg_column_size(overrides) <= 20000),
+  created_by uuid references public.profiles (id) on delete set null,
+  updated_by uuid references public.profiles (id) on delete set null,
+  updated_by_email text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists email_signatures_updated_idx on public.email_signatures (updated_at desc);
+
+-- Who saved a signature comes from the session, never from the request; a change moves updated_at to now
+-- (a new row may keep the updated_at it was given, e.g. when moving signatures saved before this table existed).
+create or replace function private.stamp_email_signature()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_by := (select auth.uid());
+  new.updated_by_email := (select auth.jwt() ->> 'email');
+  if tg_op = 'INSERT' then
+    new.created_by := new.updated_by;
+    new.created_at := now();
+  else
+    new.created_by := old.created_by;
+    new.created_at := old.created_at;
+    new.updated_at := now();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists email_signatures_stamp on public.email_signatures;
+create trigger email_signatures_stamp before insert or update on public.email_signatures
+  for each row execute function private.stamp_email_signature();
+
+revoke all on public.email_signatures from anon;
+grant select, insert, update, delete on public.email_signatures to authenticated;
+
 alter table public.profiles enable row level security;
 alter table public.documents enable row level security;
 alter table public.document_events enable row level security;
 alter table public.account_links enable row level security;
+alter table public.email_signatures enable row level security;
 
 drop policy if exists profiles_read on public.profiles;
 create policy profiles_read on public.profiles for select to authenticated
@@ -101,6 +168,11 @@ create policy profiles_read on public.profiles for select to authenticated
 drop policy if exists documents_read on public.documents;
 create policy documents_read on public.documents for select to authenticated
   using (owner_id = (select auth.uid()) or private.is_admin());
+
+drop policy if exists email_signatures_all on public.email_signatures;
+create policy email_signatures_all on public.email_signatures for all to authenticated
+  using ((select private.can_use_app('signatures')))
+  with check ((select private.can_use_app('signatures')));
 
 drop policy if exists document_events_read on public.document_events;
 create policy document_events_read on public.document_events for select to authenticated
