@@ -132,6 +132,13 @@ npm run build
 
 Sam `npm run dev` uruchamia tylko frontend (bez `/api`).
 
+## Monitorowanie
+
+- Błędy przeglądarki i serwera trafiają do **Sentry** (wspólny projekt aplikacji Nutri Partners, tag `app: neutralizer`). Przy nowym rodzaju błędu Sentry wysyła e-mail. Opis całości: README centrum (`pnedzka/nutri_hub`), „Monitorowanie i błędy”.
+- Zmienne: `SENTRY_DSN` (serwer) i `VITE_SENTRY_DSN` (przeglądarka), ta sama wartość, w Production i Preview. Bez nich nic nie jest wysyłane.
+- Serwer: `logError` z `api/_lib/monitoring.ts` zamiast `console.error`. Przetwarzanie w tle (`waitUntil` w `documents/[id]/process`) samo wysyła zgłoszenia (`flushErrors`). Przeglądarka: `src/lib/monitoring.ts`.
+- **Dokumenty są poufne:** do Sentry trafiają tylko identyfikatory i statusy, nigdy treść, wynik odczytu ani nazwy plików. Nie są wysyłane ciasteczka, nagłówki, treść żądań ani fragment adresu (`#sso=…`).
+
 ## Struktura
 
 | Ścieżka | Zawartość |
