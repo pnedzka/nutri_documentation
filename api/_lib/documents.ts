@@ -1,6 +1,7 @@
 import type { DocumentRecord, DocumentSummary, Profile, Warning } from '../../shared/schema.js';
 import { HttpError } from './http.js';
 import { db } from './supabase.js';
+import { logError } from './monitoring.js';
 
 /** A run longer than this is assumed to have been killed by the function time limit. */
 const PROCESSING_TIMEOUT_MS = 6 * 60 * 1000;
@@ -65,7 +66,7 @@ export function toPublic(row: DocumentRow): DocumentRecord {
 
 export async function logEvent(documentId: string, actorId: string, kind: string, payload: Record<string, unknown> = {}) {
   const { error } = await db().from('document_events').insert({ document_id: documentId, actor_id: actorId, kind, payload });
-  if (error) console.error('document_events insert failed', error);
+  if (error) logError('documents.logEvent', error, { documentId, kind });
 }
 
 /**

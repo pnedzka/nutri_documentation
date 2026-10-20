@@ -9,6 +9,7 @@ import { downloadName, loadDocument, logEvent, openWarnings, saveDocument, toPub
 import { HttpError, documentId, handle, json } from '../../_lib/http.js';
 import { lostCharacters, missingGlyphs, renderPdf } from '../../_lib/pdf/render.js';
 import { OUTPUTS, db } from '../../_lib/supabase.js';
+import { logError } from '../../_lib/monitoring.js';
 
 export function POST(request: Request): Promise<Response> {
   return handle(async () => {
@@ -28,7 +29,8 @@ export function POST(request: Request): Promise<Response> {
     // The PDF is read back before it is stored: a binding document must never lose a character on the way to paper.
     const lost = await lostCharacters(pdf, printable);
     if (lost.length) {
-      console.error('[finalize] characters lost in the PDF', row.id, lost);
+      // Only the count: the characters are document content.
+      logError('finalize.lostCharacters', new Error('Characters lost in the generated PDF'), { documentId: row.id, lost: lost.length });
       throw new HttpError(422, `Characters are missing from the generated PDF: ${lost.slice(0, 20).join(' ')}. The file was not saved. Report this to your administrator.`);
     }
 

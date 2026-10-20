@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import type { Profile } from '../../shared/schema.ts';
 import { ApiError, api } from './api';
 import { supabase } from './supabase';
+import { setMonitoringUser } from './monitoring';
 import { signInViaHub, signOutOfHub, ssoDone, takeSsoToken } from './sso';
 
 type Status = 'loading' | 'unconfigured' | 'signedOut' | 'signedIn' | 'error';
@@ -38,6 +39,7 @@ export const useAuth = create<AuthState>((set, get) => {
   async function loadProfile(session: Session | null) {
     if (!session) {
       set({ status: 'signedOut', session: null, profile: null });
+      setMonitoringUser(null);
       return;
     }
     // Token refreshes fire this again: keep the profile we already have for the same user.
@@ -50,6 +52,7 @@ export const useAuth = create<AuthState>((set, get) => {
     try {
       const { profile } = await api<{ profile: Profile }>('/api/me');
       set({ status: 'signedIn', profile, error: null });
+      setMonitoringUser(profile);
     } catch (e) {
       // The session ended elsewhere (e.g. signed out in another app): drop it here, so the app gets a new one from
       // the hub (or shows the sign-in form with this message).
