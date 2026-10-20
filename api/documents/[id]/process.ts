@@ -11,6 +11,7 @@ import { loadDocument, logEvent, saveDocument, toPublic, type DocumentRow } from
 import { HttpError, documentId, handle, json } from '../../_lib/http.js';
 import { processFile } from '../../_lib/pipeline.js';
 import { ORIGINALS, db } from '../../_lib/supabase.js';
+import { flushErrors, logError } from '../../_lib/monitoring.js';
 
 async function run(row: DocumentRow, actorId: string) {
   const started = Date.now();
@@ -38,10 +39,13 @@ async function run(row: DocumentRow, actorId: string) {
       warnings: result.warnings.length,
     });
   } catch (error) {
-    console.error('processing failed', row.id, error);
+    logError('process', error, { documentId: row.id, mimeType: row.mime_type });
     const message = error instanceof PipelineError ? error.message : 'Processing failed. Try again.';
     await db().from('documents').update({ status: 'error', error_message: message, updated_at: new Date().toISOString() }).eq('id', row.id);
     await logEvent(row.id, actorId, 'processing_failed', { message });
+  } finally {
+    // Runs after the response (waitUntil), outside handle(): send the reports before the function ends.
+    await flushErrors();
   }
 }
 
