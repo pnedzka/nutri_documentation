@@ -1,12 +1,13 @@
 // One document.
 //
 //   GET    /api/documents/:id   → { document, originalUrl, outputUrl, events }
-//   PATCH  /api/documents/:id   body ReviewAction | { action: 'products', npProductName, npProductCode } | { action: 'reopen' }
+//   PATCH  /api/documents/:id   body ReviewAction | { action: 'products', npProductName, npProductCode } | { action: 'type', documentType }
+//                               | { action: 'reopen' }
 //                               → { document }
 //   DELETE /api/documents/:id   → { ok: true }   (owner before finalization, or administrator)
 
 import { applyReview, ReviewError, type ReviewAction } from '../../shared/review.js';
-import { REDACTION_CATEGORIES } from '../../shared/schema.js';
+import { REDACTION_CATEGORIES, isDocumentType } from '../../shared/schema.js';
 import { requireUser } from '../_lib/auth.js';
 import { downloadName, loadDocument, logEvent, saveDocument, toPublic } from '../_lib/documents.js';
 import { HttpError, documentId, handle, json, readJson } from '../_lib/http.js';
@@ -20,7 +21,7 @@ export function GET(request: Request): Promise<Response> {
     const row = await loadDocument(documentId(request), profile);
     const original = await db().storage.from(ORIGINALS).createSignedUrl(row.original_path, URL_TTL_SECONDS);
     const output = row.output_path
-      ? await db().storage.from(OUTPUTS).createSignedUrl(row.output_path, URL_TTL_SECONDS, { download: downloadName(row.original_filename) })
+      ? await db().storage.from(OUTPUTS).createSignedUrl(row.output_path, URL_TTL_SECONDS, { download: downloadName(row) })
       : null;
     const { data: events } = await db()
       .from('document_events')
@@ -40,6 +41,7 @@ export function GET(request: Request): Promise<Response> {
 type PatchBody =
   | ReviewAction
   | { action: 'products'; npProductName?: unknown; npProductCode?: unknown }
+  | { action: 'type'; documentType?: unknown }
   | { action: 'reopen' };
 
 const isRef = (v: unknown) => {
@@ -69,6 +71,15 @@ export function PATCH(request: Request): Promise<Response> {
       const changes = { np_product_name: clean(body.npProductName, 200), np_product_code: clean(body.npProductCode, 100) };
       const saved = await saveDocument(row, changes);
       await logEvent(row.id, profile.id, 'products', { before: { np_product_name: row.np_product_name, np_product_code: row.np_product_code }, after: changes });
+      return json({ document: toPublic(saved) });
+    }
+
+    if (body.action === 'type') {
+      if (!isDocumentType(body.documentType)) throw new HttpError(400, 'Invalid document type.');
+      // The name may already have been sent to someone, so it does not change with the type.
+      if (row.output_name) throw new HttpError(409, `The PDF already has its name (${row.output_name}).`);
+      const saved = await saveDocument(row, { document_type: body.documentType });
+      await logEvent(row.id, profile.id, 'type', { before: row.document_type, after: body.documentType });
       return json({ document: toPublic(saved) });
     }
 

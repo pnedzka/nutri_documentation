@@ -45,6 +45,37 @@ create table if not exists public.documents (
 );
 
 create index if not exists documents_owner_created_idx on public.documents (owner_id, created_at desc);
+
+-- PDF names: {document_type}_NP_{yyyymmdd}_{number of the day}, e.g. CoA_NP_20261021_01 (shared/outputName.ts).
+-- The name is given at the first generation and kept afterwards; the type is recognised by the model and can be
+-- changed in review until then.
+alter table public.documents add column if not exists document_type text;
+alter table public.documents add column if not exists output_name text;
+alter table public.documents add column if not exists output_date date;
+alter table public.documents add column if not exists output_seq integer;
+create unique index if not exists documents_output_name_idx on public.documents (output_name);
+create unique index if not exists documents_output_day_seq_idx on public.documents (output_date, output_seq);
+
+-- Number of PDFs named per day (Polish calendar day) across the company. Used by the API with the service role
+-- only: row level security is on and there are no policies.
+create table if not exists public.output_counters (
+  day date primary key,
+  last integer not null
+);
+
+-- Next number of the day in one statement, so two people generating at the same moment never get the same one.
+create or replace function public.next_output_seq(p_day date)
+returns integer
+language sql
+set search_path = ''
+as $$
+  insert into public.output_counters as c (day, last) values (p_day, 1)
+  on conflict (day) do update set last = c.last + 1
+  returning last;
+$$;
+
+revoke all on function public.next_output_seq(date) from public, anon, authenticated;
+grant execute on function public.next_output_seq(date) to service_role;
 create index if not exists documents_created_idx on public.documents (created_at desc);
 
 -- Audit trail: every acknowledgement, correction, restored or added removal, processing run and finalization.
@@ -159,6 +190,7 @@ alter table public.profiles enable row level security;
 alter table public.documents enable row level security;
 alter table public.document_events enable row level security;
 alter table public.account_links enable row level security;
+alter table public.output_counters enable row level security;
 alter table public.email_signatures enable row level security;
 
 drop policy if exists profiles_read on public.profiles;

@@ -119,6 +119,26 @@ Dane firmy w stopce PDF są w pliku `shared/letterhead.ts`: pełna nazwa, adres,
 
 Logo pochodzi z `assets/logo.svg`. W PDF jest rysowane wektorowo, z pliku `api/_lib/pdf/logo.ts`, wygenerowanego z SVG. Tabele mają nagłówek w kolorze logo (powtarzany na każdej stronie, gdy tabela przechodzi na kolejną) i jasnoszare tło komórek z nazwą wiersza. Czcionka to Inter, a znaki chińskie (i japońskie kanji) są drukowane czcionką Noto Sans SC (`assets/fonts`, licencja OFL). Jeśli dokument zawiera znaki, których żadna z tych czcionek nie ma (np. koreańskie, arabskie), PDF nie zostanie wygenerowany, a aplikacja pokaże, o które znaki chodzi. Żaden znak nie zniknie więc z wyniku po cichu.
 
+## Nazwy plików PDF
+
+Pobrany PDF nazywa się `{typ}_NP_{rrrrmmdd}_{numer dnia}.pdf`, np. `CoA_NP_20261021_01.pdf`. Ta sama nazwa jest w nagłówku każdej strony („Ref. CoA_NP_20261021_01”). Nazwa nigdy nie powtarza nazwy pliku od dostawcy, bo ta często zawiera jego nazwę lub kody.
+
+- **Typ:**
+  - `CoA`: świadectwo analizy,
+  - `TDS`: specyfikacja lub karta techniczna,
+  - `SDS`: karta charakterystyki,
+  - `Allergen`, `GMO`: deklaracje,
+  - `Cert`: certyfikaty (ISO, BRC, Halal, Kosher, bio),
+  - `Statement`: inne oświadczenia,
+  - `Doc`: inne dokumenty.
+
+  Rozpoznaje go model, a w przeglądzie można go zmienić (pole „Document type”).
+- **Data i numer:** dzień pierwszego wygenerowania PDF (czas polski) i kolejny numer tego dnia w całej firmie (tabela `output_counters`, funkcja `next_output_seq`).
+- **Ponowne generowanie** (po „Reopen”) zachowuje nazwę i numer. Od tej chwili zmiana typu nie zmienia nazwy, bo plik mógł już trafić do klienta.
+- **PDF wygenerowane przed wprowadzeniem nazw** pobierają się jako `Doc_NP_{data}_{ref}.pdf`.
+
+W magazynie (`outputs`) pliki leżą pod `{właściciel}/{dokument}/{nazwa}_{znacznik czasu}.pdf`; każda wersja zostaje.
+
 ## Uruchomienie lokalne
 
 ```bash
@@ -131,6 +151,13 @@ npm run build
 ```
 
 Sam `npm run dev` uruchamia tylko frontend (bez `/api`).
+
+## Monitorowanie
+
+- Błędy przeglądarki i serwera trafiają do **Sentry** (wspólny projekt aplikacji Nutri Partners, tag `app: neutralizer`). Przy nowym rodzaju błędu Sentry wysyła e-mail. Opis całości: README centrum (`pnedzka/nutri_hub`), „Monitorowanie i błędy”.
+- Zmienne: `SENTRY_DSN` (serwer) i `VITE_SENTRY_DSN` (przeglądarka), ta sama wartość, w Production i Preview. Bez nich nic nie jest wysyłane.
+- Serwer: `logError` z `api/_lib/monitoring.ts` zamiast `console.error`. Przetwarzanie w tle (`waitUntil` w `documents/[id]/process`) samo wysyła zgłoszenia (`flushErrors`). Przeglądarka: `src/lib/monitoring.ts`.
+- **Dokumenty są poufne:** do Sentry trafiają tylko identyfikatory i statusy, nigdy treść, wynik odczytu ani nazwy plików. Nie są wysyłane ciasteczka, nagłówki, treść żądań ani fragment adresu (`#sso=…`).
 
 ## Struktura
 

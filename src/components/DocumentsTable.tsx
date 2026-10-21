@@ -36,6 +36,7 @@ export function DocumentsTable({ documents, showOwner = false }: { documents: Do
             <Link to={`/dokumenty/${d.id}`} className="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="font-medium text-gray-900 break-words">{d.original_filename}</p>
+                {d.output_name && <p className="text-xs font-mono text-gray-700 break-all">{d.output_name}.pdf</p>}
                 {(d.np_product_name || d.np_product_code) && (
                   <p className="text-xs text-gray-500 break-words">{[d.np_product_name, d.np_product_code].filter(Boolean).join(' · ')}</p>
                 )}
@@ -70,6 +71,7 @@ export function DocumentsTable({ documents, showOwner = false }: { documents: Do
                   <Link to={`/dokumenty/${d.id}`} className="font-medium text-gray-900 hover:text-[#CC1F1F] break-words">
                     {d.original_filename}
                   </Link>
+                  {d.output_name && <p className="text-xs font-mono text-gray-700 break-all">{d.output_name}.pdf</p>}
                   {(d.np_product_name || d.np_product_code) && (
                     <p className="text-xs text-gray-500 truncate">{[d.np_product_name, d.np_product_code].filter(Boolean).join(' · ')}</p>
                   )}

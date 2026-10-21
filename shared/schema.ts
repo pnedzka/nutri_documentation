@@ -19,6 +19,25 @@ export const REDACTION_LABELS: Record<RedactionCategory, string> = {
   commercial_terms: 'Commercial terms',
 };
 
+/** Kind of document; its code starts the name of the generated PDF (e.g. "CoA_NP_20261021_01.pdf"). */
+export const DOCUMENT_TYPES = ['CoA', 'TDS', 'SDS', 'Allergen', 'GMO', 'Cert', 'Statement', 'Doc'] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  CoA: 'Certificate of analysis',
+  TDS: 'Specification / technical data sheet',
+  SDS: 'Safety data sheet',
+  Allergen: 'Allergen declaration',
+  GMO: 'GMO declaration',
+  Cert: 'Certificate (ISO, BRC, Halal, Kosher, organic…)',
+  Statement: 'Other declaration or statement',
+  Doc: 'Other document',
+};
+
+export function isDocumentType(value: unknown): value is DocumentType {
+  return typeof value === 'string' && (DOCUMENT_TYPES as readonly string[]).includes(value);
+}
+
 export type RunKind = 'text' | 'illegible' | 'redact';
 
 /**
@@ -81,6 +100,8 @@ export interface Extraction {
   language: string;
   /** Number of pages the model saw. */
   page_count: number;
+  /** Kind of document as recognised by the model. Missing in documents processed before. */
+  document_type?: DocumentType;
   blocks: Block[];
   /** Anything the model could not represent (stamps, signatures, handwriting, images), in English. */
   notes: string[];
@@ -148,6 +169,9 @@ export interface DocumentRecord {
   status: DocumentStatus;
   np_product_name: string | null;
   np_product_code: string | null;
+  document_type: DocumentType | null;
+  /** Name of the generated PDF without ".pdf", given at the first generation and kept afterwards. */
+  output_name: string | null;
   extraction: Extraction | null;
   warnings: Warning[] | null;
   error_message: string | null;
