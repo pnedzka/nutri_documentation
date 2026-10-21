@@ -27,6 +27,8 @@ async function run(row: DocumentRow, actorId: string) {
         page_count: result.source.pageCount,
         extraction: result.extraction,
         warnings: result.warnings,
+        // A document that already has its PDF name keeps the type the name was made from.
+        ...(row.output_name ? {} : { document_type: result.extraction.document_type ?? 'Doc' }),
         error_message: null,
         updated_at: new Date().toISOString(),
       })

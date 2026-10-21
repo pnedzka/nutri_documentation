@@ -28,7 +28,7 @@ export function AdminDocumentsPage() {
       (d) =>
         (!owner || d.owner_id === owner) &&
         (!status || d.status === status) &&
-        (!q || [d.original_filename, d.np_product_name, d.np_product_code].some((v) => v?.toLowerCase().includes(q))),
+        (!q || [d.original_filename, d.output_name, d.np_product_name, d.np_product_code].some((v) => v?.toLowerCase().includes(q))),
     );
   }, [documents, owner, status, query]);
 

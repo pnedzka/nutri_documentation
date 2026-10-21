@@ -3,6 +3,7 @@
 import {
   EN_HOW,
   REDACTION_CATEGORIES,
+  isDocumentType,
   type Block,
   type BlockType,
   type Extraction,
@@ -156,7 +157,9 @@ export function mergeTranscriptions(parts: Extraction[], sourceParts: SourcePart
   });
   if (!blocks.length) throw new PipelineError('No content could be read from the document.');
   const language = [...languages.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'en';
-  return { language, page_count: source.pageCount ?? 1, blocks, notes };
+  // The first part holds the title page, which decides the kind of document.
+  const documentType = parts.map((p) => p.document_type).find(isDocumentType) ?? 'Doc';
+  return { language, page_count: source.pageCount ?? 1, document_type: documentType, blocks, notes };
 }
 
 /** Second reading as text per page (index 0 = page 1). */

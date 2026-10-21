@@ -1,3 +1,4 @@
+import { outputName, polishDate } from '../../shared/outputName.js';
 import type { DocumentRecord, DocumentSummary, Profile, Warning } from '../../shared/schema.js';
 import { HttpError } from './http.js';
 import { db } from './supabase.js';
@@ -7,7 +8,7 @@ import { logError } from './monitoring.js';
 const PROCESSING_TIMEOUT_MS = 6 * 60 * 1000;
 
 export const DOCUMENT_COLUMNS =
-  'id, owner_id, original_filename, original_path, mime_type, size_bytes, source_kind, page_count, status, np_product_name, np_product_code, extraction, warnings, model, error_message, output_path, created_at, updated_at, processing_started_at, finalized_at, finalized_by';
+  'id, owner_id, original_filename, original_path, mime_type, size_bytes, source_kind, page_count, status, np_product_name, np_product_code, document_type, output_name, extraction, warnings, model, error_message, output_path, created_at, updated_at, processing_started_at, finalized_at, finalized_by';
 
 export const OWNER_JOIN = 'owner:profiles!documents_owner_id_fkey(id, email, full_name)';
 
@@ -17,6 +18,9 @@ export interface DocumentRow extends DocumentRecord {
   model: string | null;
   processing_started_at: string | null;
   finalized_by: string | null;
+  /** Written once with output_name; not read back. */
+  output_date?: string;
+  output_seq?: number;
 }
 
 export function canAccess(row: Pick<DocumentRow, 'owner_id'>, profile: Profile): boolean {
@@ -85,7 +89,25 @@ export async function saveDocument(row: DocumentRow, changes: Partial<DocumentRo
   return data as unknown as DocumentRow;
 }
 
-export function downloadName(originalFilename: string): string {
-  const base = originalFilename.replace(/\.[^.]+$/, '').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'document';
-  return `${base}_NutriPartners.pdf`;
+/**
+ * Gives the document its PDF name at the first generation (see shared/outputName.ts) and saves it right away, so
+ * a generation that fails afterwards keeps the number for the next attempt. Later generations keep the name.
+ */
+export async function ensureOutputName(row: DocumentRow): Promise<DocumentRow & { output_name: string }> {
+  if (row.output_name) return row as DocumentRow & { output_name: string };
+  const day = polishDate(new Date());
+  const { data: seq, error } = await db().rpc('next_output_seq', { p_day: day });
+  if (error) throw error;
+  if (typeof seq !== 'number') throw new Error('next_output_seq returned no number');
+  const name = outputName(row.document_type ?? 'Doc', day, seq);
+  const saved = await saveDocument(row, { output_name: name, output_date: day, output_seq: seq });
+  return { ...saved, output_name: name };
+}
+
+/** File name of the downloaded PDF. It never repeats the supplier's file name, which may name the supplier. */
+export function downloadName(row: Pick<DocumentRow, 'id' | 'output_name' | 'finalized_at'>): string {
+  if (row.output_name) return `${row.output_name}.pdf`;
+  // PDFs generated before names were introduced: their header shows the short reference.
+  const day = polishDate(row.finalized_at ? new Date(row.finalized_at) : new Date()).replaceAll('-', '');
+  return `Doc_NP_${day}_${row.id.slice(0, 8).toUpperCase()}.pdf`;
 }
