@@ -50,12 +50,14 @@ describe('processFile', () => {
         return { id: 'x', type: 'key_value', page: k + 1, level: null, runs: null, items: null, header: null, body: null, rows: [{ key: [t('Moisture')], value: [t(value)] }] };
       });
       const headings = Array.from({ length: count }, (_, k) => ({ id: 'h', type: 'heading', page: k + 1, level: 2, runs: [t(`Section ${start + k}`)], items: null, rows: null, header: null, body: null }));
-      return { language: 'en', page_count: count, notes: [], blocks: headings.flatMap((h, k) => [h, blocks[k]]) } satisfies Record<string, unknown>;
+      return { language: 'en', page_count: count, document_type: start === 1 ? 'CoA' : 'Doc', notes: [], blocks: headings.flatMap((h, k) => [h, blocks[k]]) } satisfies Record<string, unknown>;
     };
     const result = await processFile(await makePdf(pages), 'application/pdf');
     expect(calls.every((c) => c.system === TRANSCRIPTION_SYSTEM)).toBe(true);
     expect(calls).toHaveLength(2);
     expect(result.source.kind).toBe('text_pdf');
+    // The first part holds the title page.
+    expect(result.extraction.document_type).toBe('CoA');
     expect(result.extraction.blocks.map((b) => b.page)).toEqual([1, 1, 2, 2, 3, 3, 4, 4]);
     expect(new Set(result.extraction.blocks.map((b) => b.id)).size).toBe(8);
     const kinds = result.warnings.map((w) => `${w.kind}@${w.page}`);
@@ -89,6 +91,7 @@ describe('processFile', () => {
     respond = () => ({
       language: 'EN-gb',
       page_count: 1,
+      document_type: 'Invoice',
       notes: ['  '],
       blocks: [
         {
@@ -115,6 +118,7 @@ describe('processFile', () => {
     const { extraction } = await processFile(new Uint8Array(png), 'image/png');
     expect(extraction.language).toBe('en');
     expect(extraction.notes).toEqual([]);
+    expect(extraction.document_type).toBe('Doc');
     expect(extraction.blocks).toHaveLength(1);
     const block = extraction.blocks[0] as Extraction['blocks'][number];
     expect(block).toMatchObject({ id: 'b1', page: 1, level: 3 });
