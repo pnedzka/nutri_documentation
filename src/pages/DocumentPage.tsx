@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, FileCheck2, FileText, History, Loader2, Package, RefreshCw, RotateCcw, Trash2, TriangleAlert } from 'lucide-react';
 import type { ReviewAction } from '../../shared/review.ts';
-import type { DocumentRecord, RedactionCategory, RunRef, Warning } from '../../shared/schema.ts';
+import { outputName, polishDate } from '../../shared/outputName.ts';
+import { DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, type DocumentRecord, type DocumentType, type RedactionCategory, type RunRef, type Warning } from '../../shared/schema.ts';
 import { Button } from '../components/Button';
 import { Card, CardBody, CardHeader } from '../components/Card';
 import { Input } from '../components/Input';
@@ -42,6 +43,7 @@ const EVENT_LABELS: Record<string, string> = {
   add_redaction: 'Fragment marked for removal',
   insert: 'Missing text added',
   products: 'NP product name/code changed',
+  type: 'Document type changed',
   finalize: 'PDF generated',
   reopen: 'Reopened for editing',
 };
@@ -260,9 +262,10 @@ export function DocumentPage() {
                 <Card>
                   <CardHeader className="flex items-center gap-2 py-3">
                     <Package size={16} className="text-[#CC1F1F]" />
-                    <h2 className="text-sm font-semibold text-gray-900">Nutri Partners product</h2>
+                    <h2 className="text-sm font-semibold text-gray-900">PDF name and Nutri Partners product</h2>
                   </CardHeader>
                   <CardBody className="space-y-3">
+                    <PdfName doc={doc} busy={busy} onChange={(documentType) => void patch({ action: 'type', documentType })} />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <Input label="NP product name" value={products.name} onChange={(e) => setProducts({ ...products, name: e.target.value })} />
                       <Input label="NP product code" value={products.code} onChange={(e) => setProducts({ ...products, code: e.target.value })} />
@@ -335,6 +338,42 @@ function BackLink() {
   );
 }
 
+/** Document type, which starts the PDF name, and the name itself once given. */
+function PdfName({ doc, busy, onChange }: { doc: DocumentRecord; busy: boolean; onChange: (type: DocumentType) => void }) {
+  const type = doc.document_type ?? 'Doc';
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="document-type" className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Document type
+        </label>
+        <select
+          id="document-type"
+          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#CC1F1F] focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+          value={type}
+          disabled={busy || !!doc.output_name}
+          onChange={(e) => onChange(e.target.value as DocumentType)}
+        >
+          {DOCUMENT_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t} – {DOCUMENT_TYPE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">PDF name</span>
+        <p className="py-2.5 text-sm font-mono text-gray-900 break-all">
+          {doc.output_name ? `${doc.output_name}.pdf` : `${outputName(type, polishDate(new Date()), 0).replace(/_00$/, '_NN')}.pdf`}
+        </p>
+        <p className="text-xs text-gray-500">
+          {doc.output_name ? 'Given at the first generation; it stays the same.' : 'NN is the number of the day, given when the PDF is generated.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function Legend() {
   return (
     <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
@@ -357,6 +396,7 @@ function ActionBar(props: { doc: DocumentRecord; open: number; busy: boolean; ou
             <div>
               <p className="font-medium text-gray-900">Document neutralized</p>
               <p className="text-sm text-gray-500">PDF generated {formatDateTime(doc.finalized_at)}.</p>
+              {doc.output_name && <p className="text-sm text-gray-900 break-all font-mono">{doc.output_name}.pdf</p>}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -461,6 +501,7 @@ function EventsCard({ events }: { events: EventRow[] }) {
 
 function EventDetail({ event }: { event: EventRow }) {
   const p = event.payload ?? {};
+  if (event.kind === 'type') return <span className="block text-xs text-gray-500">{String(p.before ?? 'none')} → {String(p.after ?? '')}</span>;
   const text = (v: unknown) => (v && typeof v === 'object' && 'text' in v ? String((v as { text: unknown }).text) : '');
   if (event.kind === 'edit') return <span className="block text-xs text-gray-500">"{text(p.before)}" → "{text(p.after)}"</span>;
   if (event.kind === 'insert') return <span className="block text-xs text-gray-500">"{String(p.text ?? '')}"</span>;

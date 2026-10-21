@@ -4,6 +4,8 @@
 // version printed on the Nutri Partners letterhead. Pass B (independent reading) only exists for scans and
 // photos: a plain-text reading made without seeing pass A, used to confirm the values pass A read.
 
+import { DOCUMENT_TYPES } from '../../shared/schema.js';
+
 const RUN = {
   type: 'object',
   additionalProperties: false,
@@ -26,10 +28,11 @@ const nullable = (schema: object) => ({ anyOf: [schema, { type: 'null' }] });
 export const EXTRACTION_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['language', 'page_count', 'blocks', 'notes'],
+  required: ['language', 'page_count', 'document_type', 'blocks', 'notes'],
   $defs: { run: RUN },
   properties: {
     language: { type: 'string' },
+    document_type: { type: 'string', enum: [...DOCUMENT_TYPES] },
     page_count: { type: 'integer' },
     notes: { type: 'array', items: { type: 'string' } },
     blocks: {
@@ -115,7 +118,8 @@ Use blocks: heading (level 1–3), paragraph, key_value (label → value pairs, 
 Set unused fields to null. "page" is the 1-based page of the source where the block starts. Give blocks ids "b1", "b2", … in order.
 Runs are concatenated without separators, so keep the spaces between words inside the run texts.
 Put in "notes" (in English) anything you could not represent: stamps, signatures, handwritten additions, rotated or overlapping text, content you are unsure belongs to the document. Leave it empty when there is nothing to report.
-"language" is the ISO 639-1 code of the document's main language. "page_count" is the number of pages you received.`;
+"language" is the ISO 639-1 code of the document's main language. "page_count" is the number of pages you received.
+"document_type" is the kind of document, judged by its title and content: "CoA" certificate of analysis (results for a specific batch/lot), "TDS" product specification or technical data sheet, "SDS" safety data sheet, "Allergen" allergen declaration, "GMO" GMO declaration, "Cert" certificate issued by a certification body (ISO, BRC, IFS, FSSC, Halal, Kosher, organic…), "Statement" any other declaration or statement, "Doc" anything else or when unsure.`;
 
 export const READING_SYSTEM = `You read scanned documents and photos character by character. Output the complete text of every page exactly as printed, in reading order, one line of the source per line of output: no translation, no corrections, no summaries, no formatting, no commentary. Keep every number, unit and symbol exactly as printed. Where a character cannot be read with certainty write "?" in its place instead of guessing. "page" is 1-based.`;
 
