@@ -114,7 +114,7 @@ export function FragmentEditor(props: Props) {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as RedactionCategory)}
-                className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm"
+                className="min-h-11 sm:min-h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#CC1F1F] focus:border-transparent"
                 aria-label="Removal category"
               >
                 {REDACTION_CATEGORIES.map((c) => (
