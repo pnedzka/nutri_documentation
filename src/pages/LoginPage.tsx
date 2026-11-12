@@ -73,7 +73,7 @@ export function LoginPage() {
           </Card>
         </div>
       </div>
-      <Footer links={false} />
+      <Footer appName="Document neutralizer" hubUrl={HUB_URL} links={false} />
     </div>
   );
 }

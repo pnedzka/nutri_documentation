@@ -20,9 +20,9 @@ Wspólne zasady, zmienne, procedura wydań i pułapki są w `CLAUDE.md` repo `pn
 - **Schemat bazy:** `db/schema.sql` to pełny opis obu baz. Zmianę stosuje się najpierw na `nutri-dev` (MCP Supabase), a przy wydaniu na produkcji, przed scaleniem do `main`. Build nie migruje bazy (brak `POSTGRES_URL_NON_POOLING`). MCP Supabase zawiesza się na `drop …`, więc SQL dzielić na części.
 - Wydanie tylko po „wdrażaj”: PR `develop` → `main` scalany merge commitem, potem sprawdzić wdrożenie produkcyjne.
 
-## Stopka (od 12.11.2026)
+## Górna belka i stopka (od 12.11.2026)
 
-- Na dole każdego ekranu `src/components/Footer.tsx`, ten sam wzór co w centrum i whoisowner: „© rok Nutri Partners · Document neutralizer”, linki „All apps” i „My profile” (centrum), wersja (skrót commita), poza produkcją znaczek „Dev”. Na ekranach logowania bez linków.
+- `src/components/AppHeader.tsx` i `src/components/Footer.tsx` to identyczne kopie plików z `nutri_hub` (wspólne dla wszystkich aplikacji). Zmieniać je w `nutri_hub` i kopiować tutaj bez zmian; to, co dotyczy tej aplikacji, idzie w propsach (w `src/components/Layout.tsx`). Zakładki (My documents, All documents, My account) są drugim wierszem belki (`nav`). Na ekranach logowania stopka jest bez linków.
 
 ## Praca z repo
 
