@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { FileText, LayoutGrid, LogOut, Shield, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { HUB_URL } from '../lib/supabase';
+import { Footer } from './Footer';
 
 /** On phones the tabs share the width equally and use the short label. */
 function Tab({ to, icon, label, short }: { to: string; icon: React.ReactNode; label: string; short: string }) {
@@ -73,6 +74,7 @@ export function Layout() {
       <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <Outlet />
       </main>
+      <Footer />
     </div>
   );
 }
