@@ -1,7 +1,8 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { FileText, Shield, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../lib/auth';
-import { HUB_URL } from '../lib/supabase';
+import { useHeaderPhoto } from '../lib/headerPhoto';
+import { HUB_URL, supabase } from '../lib/supabase';
 import { AppHeader } from './AppHeader';
 import { Footer } from './Footer';
 
@@ -27,12 +28,13 @@ function Tab({ to, icon, label, short }: { to: string; icon: React.ReactNode; la
 export function Layout() {
   const { profile, signOut } = useAuth();
   const isAdmin = profile?.role === 'admin';
+  const photo = useHeaderPhoto(supabase, Boolean(profile));
   return (
     <div className="min-h-screen flex flex-col">
       <AppHeader
         appName="Document neutralizer"
         hubUrl={HUB_URL}
-        user={profile && { name: profile.full_name, email: profile.email, role: isAdmin ? 'admin' : 'user' }}
+        user={profile && { name: profile.full_name, email: profile.email, role: isAdmin ? 'admin' : 'user', avatarUrl: photo }}
         onSignOut={() => void signOut()}
         nav={
           <nav className="flex gap-1 sm:gap-2" aria-label="Navigation">
