@@ -22,7 +22,7 @@ Wspólne zasady, zmienne, procedura wydań i pułapki są w `CLAUDE.md` repo `pn
 
 ## Górna belka i stopka (od 12.11.2026)
 
-- `src/components/AppHeader.tsx` i `src/components/Footer.tsx` to identyczne kopie plików z `nutri_hub` (wspólne dla wszystkich aplikacji). Zmieniać je w `nutri_hub` i kopiować tutaj bez zmian; to, co dotyczy tej aplikacji, idzie w propsach (w `src/components/Layout.tsx`). Zakładki (My documents, All documents, My account) są drugim wierszem belki (`nav`). Na ekranach logowania stopka jest bez linków. Wersja w stopce w stylu Apple, „Version 1.2 (a667ecf)”: numer z `package.json` (podnosić przy każdym wydaniu, zasady w `CLAUDE.md` centrum, „Procedura”) i skrót commita.
+- `src/components/AppHeader.tsx` i `src/components/Footer.tsx` to identyczne kopie plików z `nutri_hub` (wspólne dla wszystkich aplikacji). Zmieniać je w `nutri_hub` i kopiować tutaj bez zmian; to, co dotyczy tej aplikacji, idzie w propsach (w `src/components/Layout.tsx`). Zakładki (My documents, All documents, My account) są drugim wierszem belki (`nav`). Na ekranach logowania stopka jest bez linków. Wersja w stopce w stylu Apple, „Version 26.1 (a667ecf)”: numer z roku i `package.json` (podnosić przy każdym wydaniu, zasady w `CLAUDE.md` centrum, „Procedura”) i skrót commita.
 
 ## Praca z repo
 
